@@ -37,7 +37,7 @@
 #define Yellow          0xFFE0      /* 32, 64,  0 */
 #define White           0xFFFF      /* 32, 64, 32 */
 #define Orange          0xFD20      /* 32, 41,  0 */
-#define GreenYellow     0xAFE5      /* 22, 64, 6 */
+#define GreenYellow     0xAFE5      /* 22, 64,  6 */
 #define Pink            0xF81F      /* 32,  0, 32 */
 
 class DisplayDriver {
