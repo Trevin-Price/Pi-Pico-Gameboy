@@ -1,4 +1,4 @@
-# Raspberry Pi Pico Gameboy
+# Raspberry Pi Pico Gameboy Project
 
 ## Dependencies
 
