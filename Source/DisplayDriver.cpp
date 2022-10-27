@@ -141,7 +141,7 @@ bool DisplayDriver::initDisplay() {
 }
 
 bool DisplayDriver::testDisplay() {
-    for (int i = 0; i < bufferSize; i++) {
+    for (uint i = 0; i < bufferSize; i++) {
         buffer[i*sizeof(uint16_t)] = Blue; // set entire buffer to Blue
     }
 
@@ -149,7 +149,7 @@ bool DisplayDriver::testDisplay() {
 
     sleep_ms(10000);
     
-    for (int i = 0; i < bufferSize; i++) {
+    for (uint i = 0; i < bufferSize; i++) {
         buffer[i*sizeof(uint16_t)] = Red; // set entire buffer to Red
     }
 
