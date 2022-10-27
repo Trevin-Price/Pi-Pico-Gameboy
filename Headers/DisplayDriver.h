@@ -1,4 +1,5 @@
 #pragma once
+
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include <cstring>
