@@ -6,8 +6,11 @@ for already having made this, allowing me to not have to read 250 pages of ili93
 */
 
 uint bufferSize, displayWidth, displayHeight, csPin, rstPin, dcPin, sdiPin, sckPin, sdoPin; // using unsigned ints because though I could cast a normal int, there is no need to because I'm only using positive values.
-uint16_t *buffer; // normal color would use 3 bytes (24 bits), but I'm using 2 bytes (16 bits), so I'll need to convert my colors
+//uint16_t *buffer; // normal color would use 3 bytes (24 bits), but I'm using 2 bytes (16 bits), so I'll need to convert my colors
 // while 24 bit color is 8-8-8 (8R bits, 8G bits, 8B bits), 16 bit color is (usually) 5-6-5 (5R bits, 6G bits, 5B bits), though it can also be 5-5-5 with one extra bit
+
+//uint16_t buffer[320*240] = { 0 };
+uint8_t buffer[320*240] = {0xFF};
 
 spi_inst_t* spiPort; // the spi0 definition is a pointer
 
@@ -31,10 +34,16 @@ void DisplayDriver::writeCommandParameter(uint8_t data) { // set parameter from 
     selectMode(0); // out of write mode
 }
 
-void DisplayDriver::writeData(uint16_t *buffer, int bytes) { // give it the pointer to the buffer so it can read it (16 bit support)
+void DisplayDriver::writeData(uint16_t *buffer, int bytes) { // give it the buffer so it can read it (16 bit support)
     selectMode(1); // put device into write mode
     spi_write16_blocking(spiPort, buffer, bytes); // write data to device, and tell it how many bytes are being written
     selectMode(0); // take device out of write mode
+}
+
+void DisplayDriver::writeData8Bit(uint8_t *buffer, int bytes) {
+    selectMode(1);
+    spi_write_blocking(spiPort, buffer, bytes);
+    selectMode(0);
 }
 
 /*
@@ -45,8 +54,8 @@ void DisplayDriver::writeData(uint16_t *buffer, int bytes) { // give it the poin
 
 DisplayDriver::DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sdi, uint sck, uint sdo, spi_inst_t* spi) {
 
-    buffer = (uint16_t*) malloc(sizeof(uint16_t) * x * y); // allocate display buffer, also have to cast it because this is cpp (not C)
-    memset(buffer, 0xFFFF, sizeof(uint16_t)*x*y); // write display buffer to be all White
+    //buffer = (uint16_t*) malloc(sizeof(uint16_t) * x * y); // allocate display buffer, also have to cast it because this is cpp (not C)
+    //memset(buffer, 0xFFFF, x * y); // write display buffer to be all White
     displayWidth = x;
     displayHeight = y;
     bufferSize = x * y; // store this so I don't have to calculate it every time
@@ -98,12 +107,12 @@ bool DisplayDriver::initDisplay() {
 
     // correct positive gamma
     writeCommand(COMMAND_POSITIVE_GAMMA);
-    writeData(new uint16_t[15]{ 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00 }, 15); // data to correct positive gamma, need to see individually what this data does
+    writeData8Bit(new uint8_t[15]{ 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00 }, 15); // data to correct positive gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     // correct negative gamma
     writeCommand(COMMAND_NEGATIVE_GAMMA);
-    writeData(new uint16_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
+    writeData8Bit(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode
@@ -135,11 +144,13 @@ bool DisplayDriver::initDisplay() {
 
     writeCommand(COMMAND_MEMORY_WRITE); // why?
 
-    writeData(buffer, bufferSize); // initiate the display to white
+    sleep_ms(10000);
+
+    writeData8Bit(buffer, bufferSize); // initiate the display to white
 
     return true;
 }
-
+/*
 bool DisplayDriver::testDisplay() {
     for (uint i = 0; i < bufferSize; i++) {
         buffer[i*sizeof(uint16_t)] = Blue; // set entire buffer to Blue
@@ -156,4 +167,4 @@ bool DisplayDriver::testDisplay() {
     writeData(buffer, bufferSize);
 
     return true;
-}
+}*/

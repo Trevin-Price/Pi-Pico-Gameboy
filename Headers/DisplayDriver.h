@@ -46,6 +46,7 @@ class DisplayDriver {
         bool testDisplay();
 
         void writeData(uint16_t *buffer, int bytes);
+        void writeData8Bit(uint8_t *buffer, int bytes);
         void writeCommandParameter(uint8_t data);
         void writeCommand(uint8_t cmd);
         
