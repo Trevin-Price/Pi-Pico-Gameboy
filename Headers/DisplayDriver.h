@@ -4,6 +4,7 @@
 #include "hardware/spi.h"
 #include <cstring>
 #include <cstdlib>
+#include <stdint.h>
 
 // command definition
 #define COMMAND_SET_GAMMA             0x26
@@ -15,7 +16,7 @@
 #define COMMAND_EXIT_SLEEP            0x11
 #define COMMAND_DISPLAY_ON            0x29
 #define COMMAND_COLUMN_ADDRESS_SET    0x2A
-#define COMMAND_PAGE_ADDRESS_SET      0x2B
+#define COMMAND_ROW_ADDRESS_SET       0x2B
 #define COMMAND_MEMORY_WRITE          0x2C
 
 // while 24 bit color is 8-8-8 (8R bits, 8G bits, 8B bits), 16 bit color is (usually) 5-6-5 (5R bits, 6G bits, 5B bits), though it can also be 5-5-5 with one extra bit
@@ -43,12 +44,14 @@
 class DisplayDriver {
     public:
         bool initDisplay();
-        bool testDisplay();
+        void drawRect(int x, int y, int width, int height, uint16_t color);
+        void clearBuffer();
 
-        void writeData(uint16_t *buffer, int bytes);
-        void writeData8Bit(uint8_t *buffer, int bytes);
+        void writeData(void *buffer, int bytes);
         void writeCommandParameter(uint8_t data);
         void writeCommand(uint8_t cmd);
         
         DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sdi, uint sck, uint sdo, spi_inst_t* spi);
+    private:
+        uint16_t *buffer;
 };

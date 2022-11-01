@@ -8,6 +8,15 @@ DisplayDriver display = DisplayDriver(320, 240, 22, 21, 20, 19, 18, 16, spi0);
 int main() { // main entrypoint
     display.initDisplay(); // initiate the display (resolution, pins), pin 22 could swap to pin 17, but I didn't use it because it'd be a little confusing having a digital pin being used in the middle of where I used SP pins
 
-    //display.testDisplay();
+    int x = 0;
+    while (true) {
+        if (x == 320) {
+            x = 0;
+        } else {
+            x++;
+        }
+        display.clearBuffer();
+        display.drawRect(x, 20, 10, 20, White);
+    }
     return 0;
 }

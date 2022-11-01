@@ -1,16 +1,21 @@
 #include "DisplayDriver.h"
 
 /*
+-- Documenting issues along the way
+
+    - One issue I had was with something going wrong when it tried to write data to the display, and the issue turned out to be the fact that I was trying to use the 16bit write method when I had not initiated the device for 16 bit transfers.  My two options were to either convert my premade 8bit gamma fixes to 16bit, or to cast my 16 bit data into 8 bit (while retaining 16 bit color by sending each byte at a time).  I decided to go with the latter.  I learned about the 16 bit issue from this site: https://raspberrypi.github.io/pico-sdk-doxygen/group__hardware__spi.html#gacff6be19b2de92a34b295597f3ae8572
+
+*/
+
+
+/*
 Credit to: https://github.com/shawnhyam/pico/tree/main/ili9341
 for already having made this, allowing me to not have to read 250 pages of ili9341 datasheets to find out the initiation process for this display.
 */
 
 uint bufferSize, displayWidth, displayHeight, csPin, rstPin, dcPin, sdiPin, sckPin, sdoPin; // using unsigned ints because though I could cast a normal int, there is no need to because I'm only using positive values.
-//uint16_t *buffer; // normal color would use 3 bytes (24 bits), but I'm using 2 bytes (16 bits), so I'll need to convert my colors
+uint16_t *buffer; // normal color would use 3 bytes (24 bits), but I'm using 2 bytes (16 bits), so I'll need to convert my colors
 // while 24 bit color is 8-8-8 (8R bits, 8G bits, 8B bits), 16 bit color is (usually) 5-6-5 (5R bits, 6G bits, 5B bits), though it can also be 5-5-5 with one extra bit
-
-//uint16_t buffer[320*240] = { 0 };
-uint8_t buffer[320*240] = {0xFF};
 
 spi_inst_t* spiPort; // the spi0 definition is a pointer
 
@@ -34,16 +39,10 @@ void DisplayDriver::writeCommandParameter(uint8_t data) { // set parameter from 
     selectMode(0); // out of write mode
 }
 
-void DisplayDriver::writeData(uint16_t *buffer, int bytes) { // give it the buffer so it can read it (16 bit support)
-    selectMode(1); // put device into write mode
-    spi_write16_blocking(spiPort, buffer, bytes); // write data to device, and tell it how many bytes are being written
-    selectMode(0); // take device out of write mode
-}
-
-void DisplayDriver::writeData8Bit(uint8_t *buffer, int bytes) {
+void DisplayDriver::writeData(void *myBuffer, int bytes) { // Only writes 8 bit data, so I need to write my 16 bit by using two 8 bit packets
     selectMode(1);
-    spi_write_blocking(spiPort, buffer, bytes);
-    selectMode(0);
+    spi_write_blocking(spiPort, (uint8_t*) myBuffer, bytes); // write data to device, and tell it how many bytes are being written
+    selectMode(0); // take device out of write mode
 }
 
 /*
@@ -54,11 +53,11 @@ void DisplayDriver::writeData8Bit(uint8_t *buffer, int bytes) {
 
 DisplayDriver::DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sdi, uint sck, uint sdo, spi_inst_t* spi) {
 
-    //buffer = (uint16_t*) malloc(sizeof(uint16_t) * x * y); // allocate display buffer, also have to cast it because this is cpp (not C)
-    //memset(buffer, 0xFFFF, x * y); // write display buffer to be all White
+    buffer = (uint16_t*) malloc(sizeof(uint16_t) * x * y); // allocate display buffer, also have to cast it because this is cpp (not C)
+    memset(buffer, 0x00, x * y * sizeof(uint16_t)); // write display buffer to be all Black
     displayWidth = x;
     displayHeight = y;
-    bufferSize = x * y; // store this so I don't have to calculate it every time
+    bufferSize = x * y * sizeof(uint16_t); // this is in bytes
 
     csPin = cs; // LCD chip select (low = enabled), this essentially tells it when you're going to write data
     rstPin = rst; // LCD reset (low = reset)
@@ -81,7 +80,7 @@ bool DisplayDriver::initDisplay() {
     // initiate cs pin
     gpio_init(csPin);
     gpio_set_dir(csPin, GPIO_OUT);
-    gpio_put(csPin, 0); // set it into chip select mode
+    gpio_put(csPin, 0); // select mode
 
     //initiate reset pin
     gpio_init(rstPin);
@@ -91,11 +90,11 @@ bool DisplayDriver::initDisplay() {
     //initiate dc pin
     gpio_init(dcPin);
     gpio_set_dir(dcPin, GPIO_OUT);
-    gpio_put(dcPin, 0); // set into data selection mode
+    gpio_put(dcPin, 1); // data mode
 
     // reset display (low == enabled)
-    sleep_ms(10); // not sure why I'm sleeping prior to resetting, this can be investigated for usefulness later
-    gpio_put(rstPin, 0); // reset enabled
+    sleep_ms(10);
+    gpio_put(rstPin, 0); // resetting
     sleep_ms(10); // give time to process the pin input
     gpio_put(rstPin, 1); // reset disabled
 
@@ -107,12 +106,12 @@ bool DisplayDriver::initDisplay() {
 
     // correct positive gamma
     writeCommand(COMMAND_POSITIVE_GAMMA);
-    writeData8Bit(new uint8_t[15]{ 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00 }, 15); // data to correct positive gamma, need to see individually what this data does
+    writeData(new uint8_t[15]{ 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00 }, 15); // data to correct positive gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     // correct negative gamma
     writeCommand(COMMAND_NEGATIVE_GAMMA);
-    writeData8Bit(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
+    writeData(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode
@@ -130,13 +129,13 @@ bool DisplayDriver::initDisplay() {
 
     writeCommand(COMMAND_DISPLAY_ON); // turn on display
 
-    writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address (whatever that means)
+    writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
     writeCommandParameter(0x00);
     writeCommandParameter(0x00);
     writeCommandParameter(0x00); // "start column", but why 3 bytes of 0?
     writeCommandParameter(0xef); // end column -> "239"
 
-    writeCommand(COMMAND_PAGE_ADDRESS_SET); // set page address (whatever that means)
+    writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
     writeCommandParameter(0x00);
     writeCommandParameter(0x00); // "start page", but why 2 bytes of 0?
     writeCommandParameter(0x01); // why?
@@ -144,27 +143,21 @@ bool DisplayDriver::initDisplay() {
 
     writeCommand(COMMAND_MEMORY_WRITE); // why?
 
-    sleep_ms(10000);
-
-    writeData8Bit(buffer, bufferSize); // initiate the display to white
+    writeData(buffer, bufferSize);
 
     return true;
 }
-/*
-bool DisplayDriver::testDisplay() {
-    for (uint i = 0; i < bufferSize; i++) {
-        buffer[i*sizeof(uint16_t)] = Blue; // set entire buffer to Blue
-    }
+
+void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
+    memset(buffer, 0, sizeof(uint16_t) * bufferSize);
+    uint16_t *base = &buffer[x*displayHeight+y]; // get a pointer to the first pixel
+
+	for (int w = 0; w < width; w++) { // iterate through the width
+	    uint16_t *loc = base + w*displayHeight; // get a pointer to the pixel at offset w
+    	for (int h = 0; h < height; h++) { // iterate through the height
+			*loc++ = 0xFFFF; // add one to loc, and add the color to that, and the added one to loc saves (for the next iteration)
+    	}
+	}
 
     writeData(buffer, bufferSize);
-
-    sleep_ms(10000);
-    
-    for (uint i = 0; i < bufferSize; i++) {
-        buffer[i*sizeof(uint16_t)] = Red; // set entire buffer to Red
-    }
-
-    writeData(buffer, bufferSize);
-
-    return true;
-}*/
+}
