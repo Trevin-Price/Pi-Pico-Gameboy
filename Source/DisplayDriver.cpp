@@ -114,8 +114,8 @@ bool DisplayDriver::initDisplay() {
     writeData(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
-    writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode
-    writeCommandParameter(0x48); // need to investigate what this parameter does
+    writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode (read and write scanning direction of frame memory)
+    writeCommandParameter(0xE0); // this sets the rotation of the display (page 127 of datasheet, these are 6 bits), 0x48 is default, 0xE0 = 11100000 (flip X, flip Y, swap rows and colums (rotate)), I forgot to swap the declared sizes  of columns and rows and was debugging the issue for a while (lines 133 and 139)
 
     writeCommand(COMMAND_PIXEL_FORMAT);
     writeCommandParameter(0x55); // investigate into the purpose of this code
@@ -130,16 +130,16 @@ bool DisplayDriver::initDisplay() {
     writeCommand(COMMAND_DISPLAY_ON); // turn on display
 
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
+    writeCommandParameter(0x00); // the command expects 4 bytes of data, so I need to send a few zeroes first
     writeCommandParameter(0x00);
-    writeCommandParameter(0x00);
-    writeCommandParameter(0x00); // "start column", but why 3 bytes of 0?
-    writeCommandParameter(0xef); // end column -> "239"
+    writeCommandParameter(0x01);
+    writeCommandParameter(0x3f); // end column -> 239, as in 240 px wide, starting at px 0
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(0x00);
-    writeCommandParameter(0x00); // "start page", but why 2 bytes of 0?
-    writeCommandParameter(0x01); // why?
-    writeCommandParameter(0x3f); // end page -> 319 (why?)
+    writeCommandParameter(0x00); // the command expects 4 bytes of data, so I need to send a few zeroes first
+    writeCommandParameter(0x00); 
+    writeCommandParameter(0x00); // 0x013f == 319
+    writeCommandParameter(0xef); // end page -> 319, as in 320 px wide, starting at px 0
 
     writeCommand(COMMAND_MEMORY_WRITE); // why?
 
@@ -148,16 +148,26 @@ bool DisplayDriver::initDisplay() {
     return true;
 }
 
+void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
+    buffer[y*displayWidth+x] = color;
+    writeData(buffer, bufferSize);
+}
+
+
 void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
-    memset(buffer, 0, sizeof(uint16_t) * bufferSize);
-    uint16_t *base = &buffer[x*displayHeight+y]; // get a pointer to the first pixel
+    memset(buffer, 0, bufferSize);
+    
+    uint16_t *base = &buffer[y*displayWidth+x]; // get a pointer to the first pixel (multiply by display width because it's left to right)
 
 	for (int w = 0; w < width; w++) { // iterate through the width
-	    uint16_t *loc = base + w*displayHeight; // get a pointer to the pixel at offset w
+        if ((w + x) == (int) displayWidth) {
+            base += (displayWidth*(height-1));
+        }
+	    uint16_t *loc = base + w; // get a pointer to the pixel at offset w
     	for (int h = 0; h < height; h++) { // iterate through the height
-			*loc++ = 0xFFFF; // add one to loc, and add the color to that, and the added one to loc saves (for the next iteration)
-    	}
+			*(loc+displayWidth*h) = color; // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
+    	    // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
+        }
 	}
-
     writeData(buffer, bufferSize);
 }
