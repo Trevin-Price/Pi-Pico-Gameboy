@@ -42,16 +42,20 @@
 #define Pink            0xF81F      /* 32,  0, 32 */
 
 class DisplayDriver {
+    uint16_t *buffer;
+
     public:
-        bool initDisplay();
+        uint displayWidth;
+        uint displayHeight;
+        void initDisplay();
         void drawRect(int x, int y, int width, int height, uint16_t color);
         void drawPixel(int x, int y, uint16_t color);
+        void renderBuffer();
+        void clearBuffer();
 
         void writeData(void *buffer, int bytes);
         void writeCommandParameter(uint8_t data);
         void writeCommand(uint8_t cmd);
         
         DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sdi, uint sck, uint sdo, spi_inst_t* spi);
-    private:
-        uint16_t *buffer;
 };

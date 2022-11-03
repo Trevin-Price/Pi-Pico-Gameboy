@@ -68,7 +68,7 @@ DisplayDriver::DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sd
     spiPort = spi; // this is the specific spi port I will be using (pico can use spi1 or spi0), the pin selection for sck, sdo, and sdi will decide which spi port I'm using, though I still have to specify it.
 }
 
-bool DisplayDriver::initDisplay() {
+void DisplayDriver::initDisplay() {
     spi_init(spiPort, 0.5 * 1000000); // initiate the device with buadrate/frequency at 0.5MHz
     spi_set_baudrate(spiPort, 75 * 1000000); // attempt to set the baud rate to 75MHz (too high for the device), and have it return the value it was actually set to (which I could use for debugging if needed)
     // I can probably just initiate the display with the 75mhz baud rate, but I'll seee soon once I've tested.
@@ -144,8 +144,14 @@ bool DisplayDriver::initDisplay() {
     writeCommand(COMMAND_MEMORY_WRITE); // why?
 
     writeData(buffer, bufferSize);
+}
 
-    return true;
+void DisplayDriver::clearBuffer() {
+    memset(buffer, 0, bufferSize);
+}
+
+void DisplayDriver::renderBuffer() {
+    writeData(buffer, bufferSize);
 }
 
 void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
@@ -153,21 +159,19 @@ void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
     writeData(buffer, bufferSize);
 }
 
-
 void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
-    memset(buffer, 0, bufferSize);
     
     uint16_t *base = &buffer[y*displayWidth+x]; // get a pointer to the first pixel (multiply by display width because it's left to right)
 
 	for (int w = 0; w < width; w++) { // iterate through the width
-        if ((w + x) == (int) displayWidth) {
-            base += (displayWidth*(height-1));
-        }
-	    uint16_t *loc = base + w; // get a pointer to the pixel at offset w
+        uint16_t *loc = base + w; // get a pointer to the pixel at offset w
+        
+        if ((w + x) >= (int) displayWidth)
+            loc -= displayWidth;
+        
     	for (int h = 0; h < height; h++) { // iterate through the height
 			*(loc+displayWidth*h) = color; // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
     	    // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
         }
 	}
-    writeData(buffer, bufferSize);
 }
