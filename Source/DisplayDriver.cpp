@@ -147,7 +147,11 @@ void DisplayDriver::initDisplay() {
 }
 
 void DisplayDriver::clearBuffer() {
-    memset(buffer, 0, bufferSize);
+    for (uint x = 0; x < displayWidth; x++) {
+        for (uint y = 0; y < displayHeight; y++)
+            buffer[y*displayWidth+x] = 0x7C0;
+    }
+    //memset(buffer, 0, bufferSize);
 }
 
 void DisplayDriver::renderBuffer() {
@@ -170,7 +174,7 @@ void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color
             loc -= displayWidth;
         
     	for (int h = 0; h < height; h++) { // iterate through the height
-			*(loc+displayWidth*h) = color; // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
+			*(loc+displayWidth*h) = (color >> 11) | (color << 11) | ((color >> 5) << 10); // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
     	    // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
         }
 	}
