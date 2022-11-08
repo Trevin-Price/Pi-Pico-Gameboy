@@ -22,6 +22,7 @@
 // while 24 bit color is 8-8-8 (8R bits, 8G bits, 8B bits), 16 bit color is (usually) 5-6-5 (5R bits, 6G bits, 5B bits), though it can also be 5-5-5 with one extra bit
 // common 16 bit color definitions (RGB 565, which is why green goes up to 64, while red and blue only hit 32)
 #define Black           0x0000      /*  0,  0,  0 */
+#define DarkGrey        0x2084      /*  4,  8,  4 */
 #define Navy            0x000F      /*  0,  0, 16 */
 #define DarkGreen       0x03E0      /*  0, 32,  0 */
 #define DarkCyan        0x03EF      /*  0, 32, 16 */

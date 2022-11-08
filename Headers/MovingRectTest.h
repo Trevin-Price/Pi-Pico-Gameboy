@@ -4,5 +4,5 @@
 
 class MovingRectTest {
     public:
-        static void Start(UserInputHandler inputHandler, DisplayDriver display, uint speed, uint16_t BackgroundColor, uint16_t RectangleColor);
+        static void Start(DisplayDriver display, uint speed, uint16_t BackgroundColor, uint16_t RectangleColor);
 };

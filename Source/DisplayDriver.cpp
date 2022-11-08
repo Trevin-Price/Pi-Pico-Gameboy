@@ -155,6 +155,10 @@ void DisplayDriver::setEntireBuffer(uint16_t color) { // memset doesn't work wit
     //memset(buffer, 0, bufferSize);
 }
 
+void fixColor(uint16_t* color) {
+    *color = ((*color >> 11 << 11) | ((*color &~(*color >> 5 << 5)) << 6) | (((*color >> 5 << 5)&~(*color >> 11 << 11)) >> 5));
+}
+
 void DisplayDriver::renderBuffer() {
     writeData(buffer, bufferSize);
 }
@@ -165,7 +169,7 @@ void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
 }
 
 void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
-    color = ((color >> 11 << 11) | ((color &~(color >> 5 << 5)) << 6) | (((color >> 5 << 5)&~(color >> 11 << 11)) >> 5)); // see comment in setEntireBuffer
+    fixColor(&color);
 
     uint16_t *base = &buffer[y*displayWidth+x]; // get a pointer to the first pixel (multiply by display width because it's left to right)
 

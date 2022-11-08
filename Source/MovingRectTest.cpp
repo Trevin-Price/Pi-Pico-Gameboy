@@ -1,17 +1,17 @@
 #include "UserInputHandler.h"
 #include "MovingRectTest.h"
 
-void MovingRectTest::Start(UserInputHandler inputHandler, DisplayDriver display, uint speed, uint16_t BackgroundColor, uint16_t RectangleColor) {
+void MovingRectTest::Start(DisplayDriver display, uint speed, uint16_t BackgroundColor, uint16_t RectangleColor) {
     int y = 0; // needs to be able to go negative for when it goes too high
     int x = 0; // needs to be able to go negative for when it goes too far left
     while (true) {
         
-        inputHandler.updateInput();
+        UserInputHandler::updateInput();
             
-        if (inputHandler.Buttons[0])
+        if (UserInputHandler::Buttons[0])
             y++;
 
-        if (inputHandler.Buttons[1])
+        if (UserInputHandler::Buttons[1])
             y--;
         
         if (y >= ((int) display.displayHeight)) {
