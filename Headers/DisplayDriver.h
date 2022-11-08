@@ -51,7 +51,7 @@ class DisplayDriver {
         void drawRect(int x, int y, int width, int height, uint16_t color);
         void drawPixel(int x, int y, uint16_t color);
         void renderBuffer();
-        void clearBuffer();
+        void setEntireBuffer(uint16_t color);
 
         void writeData(void *buffer, int bytes);
         void writeCommandParameter(uint8_t data);

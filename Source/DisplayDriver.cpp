@@ -4,7 +4,7 @@
 -- Documenting issues along the way
 
     - One issue I had was with something going wrong when it tried to write data to the display, and the issue turned out to be the fact that I was trying to use the 16bit write method when I had not initiated the device for 16 bit transfers.  My two options were to either convert my premade 8bit gamma fixes to 16bit, or to cast my 16 bit data into 8 bit (while retaining 16 bit color by sending each byte at a time).  I decided to go with the latter.  I learned about the 16 bit issue from this site: https://raspberrypi.github.io/pico-sdk-doxygen/group__hardware__spi.html#gacff6be19b2de92a34b295597f3ae8572
-
+    - The display has the green and blue bits swapped for some unknown reason
 */
 
 
@@ -53,8 +53,7 @@ void DisplayDriver::writeData(void *myBuffer, int bytes) { // Only writes 8 bit 
 
 DisplayDriver::DisplayDriver(uint x, uint y, uint cs, uint rst, uint dc, uint sdi, uint sck, uint sdo, spi_inst_t* spi) {
 
-    buffer = (uint16_t*) malloc(sizeof(uint16_t) * x * y); // allocate display buffer, also have to cast it because this is cpp (not C)
-    memset(buffer, 0x00, x * y * sizeof(uint16_t)); // write display buffer to be all Black
+    buffer = new uint16_t[x*y];
     displayWidth = x;
     displayHeight = y;
     bufferSize = x * y * sizeof(uint16_t); // this is in bytes
@@ -146,10 +145,12 @@ void DisplayDriver::initDisplay() {
     writeData(buffer, bufferSize);
 }
 
-void DisplayDriver::clearBuffer() {
+void DisplayDriver::setEntireBuffer(uint16_t color) { // memset doesn't work with multiple bytes
+    color = ((color >> 11 << 11) | ((color &~(color >> 5 << 5)) << 6) | (((color >> 5 << 5)&~(color >> 11 << 11)) >> 5)); 
+    // shifting all the bits to fix it from being RBG to RGB (not sure why but this display has green and blue swapped), so I'm taking the first 5 bits, isoltating them, and adding them to the far right 5 bits who have been shifted to the middle after being isolated, and then combining those with the middle 6 bits who have been shifted to the far right after being isolated.
     for (uint x = 0; x < displayWidth; x++) {
         for (uint y = 0; y < displayHeight; y++)
-            buffer[y*displayWidth+x] = 0x7C0;
+            buffer[y*displayWidth+x] = color;
     }
     //memset(buffer, 0, bufferSize);
 }
@@ -164,7 +165,8 @@ void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
 }
 
 void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
-    
+    color = ((color >> 11 << 11) | ((color &~(color >> 5 << 5)) << 6) | (((color >> 5 << 5)&~(color >> 11 << 11)) >> 5)); // see comment in setEntireBuffer
+
     uint16_t *base = &buffer[y*displayWidth+x]; // get a pointer to the first pixel (multiply by display width because it's left to right)
 
 	for (int w = 0; w < width; w++) { // iterate through the width
@@ -174,8 +176,11 @@ void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color
             loc -= displayWidth;
         
     	for (int h = 0; h < height; h++) { // iterate through the height
-			*(loc+displayWidth*h) = (color >> 11) | (color << 11) | ((color >> 5) << 10); // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
-    	    // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
+            if ((h + y) >= (int) displayHeight)
+                *(loc-displayWidth*y+displayWidth*(h+y-displayHeight)) = color;
+            else
+			    *(loc+displayWidth*h) = color; // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
+    	        // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
         }
 	}
 }
