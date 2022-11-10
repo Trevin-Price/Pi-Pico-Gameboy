@@ -15,7 +15,18 @@ int main() { // main entrypoint
     display.initDisplay(); // initiate the display (resolution, pins), pin 22 could swap to pin 17, but I didn't use it because it'd be a little confusing having a digital pin being used in the middle of where I used SP pins
     UserInputHandler::initInput(); // initiate the device
 
-    GameLoader::RenderMainMenu();
+    //GameLoader::RenderMainMenu();
+
+    absolute_time_t start = get_absolute_time();
+
+    display.fillBuffer(Black);
+    display.renderBuffer();
+
+    absolute_time_t end = get_absolute_time();
+
+    int64_t timeDiff = absolute_time_diff_us(start, end);
+
+    display.drawText()
 
     //MovingRectTest::Start(display, 5, Black, Green); // yields indefinitely
 
