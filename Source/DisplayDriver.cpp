@@ -145,18 +145,18 @@ void DisplayDriver::initDisplay() {
     writeData(buffer, bufferSize);
 }
 
-void DisplayDriver::setEntireBuffer(uint16_t color) { // memset doesn't work with multiple bytes
-    color = ((color >> 11 << 11) | ((color &~(color >> 5 << 5)) << 6) | (((color >> 5 << 5)&~(color >> 11 << 11)) >> 5)); 
-    // shifting all the bits to fix it from being RBG to RGB (not sure why but this display has green and blue swapped), so I'm taking the first 5 bits, isoltating them, and adding them to the far right 5 bits who have been shifted to the middle after being isolated, and then combining those with the middle 6 bits who have been shifted to the far right after being isolated.
+void fixColor(uint16_t* color) {
+    *color = ((*color >> 11 << 11) | ((*color &~(*color >> 5 << 5)) << 6) | (((*color >> 5 << 5)&~(*color >> 11 << 11)) >> 5));
+}
+
+void DisplayDriver::fillBuffer(uint16_t color) { // memset doesn't work with multiple bytes
+    fixColor(&color);
+    
     for (uint x = 0; x < displayWidth; x++) {
         for (uint y = 0; y < displayHeight; y++)
             buffer[y*displayWidth+x] = color;
     }
     //memset(buffer, 0, bufferSize);
-}
-
-void fixColor(uint16_t* color) {
-    *color = ((*color >> 11 << 11) | ((*color &~(*color >> 5 << 5)) << 6) | (((*color >> 5 << 5)&~(*color >> 11 << 11)) >> 5));
 }
 
 void DisplayDriver::renderBuffer() {
@@ -165,26 +165,27 @@ void DisplayDriver::renderBuffer() {
 
 void DisplayDriver::drawPixel(int x, int y, uint16_t color) {
     buffer[y*displayWidth+x] = color;
-    writeData(buffer, bufferSize);
 }
 
-void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t color) {
-    fixColor(&color);
+void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
+    fixColor(&backgroundColor);
+    fixColor(&borderColor);
 
     uint16_t *base = &buffer[y*displayWidth+x]; // get a pointer to the first pixel (multiply by display width because it's left to right)
 
 	for (int w = 0; w < width; w++) { // iterate through the width
         uint16_t *loc = base + w; // get a pointer to the pixel at offset w
         
-        if ((w + x) >= (int) displayWidth)
-            loc -= displayWidth;
-        
     	for (int h = 0; h < height; h++) { // iterate through the height
-            if ((h + y) >= (int) displayHeight)
-                *(loc-displayWidth*y+displayWidth*(h+y-displayHeight)) = color;
+            if (w < borderThickness || h < borderThickness || (width-w) < borderThickness || (height-h) < borderThickness)
+                *(loc+displayWidth*h) = borderColor; // add displayWidth to loc, dereferencing pointer so I can write to it
+            // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
             else
-			    *(loc+displayWidth*h) = color; // add displayWidth to loc, and add the color to that, and the added one to loc saves for the next iteration, also dereferencing pointer so I can write to it
-    	        // adding displayWidth because we need to move down one pixel, which is the same as moving across the entire display once
+                *(loc+displayWidth*h) = backgroundColor;
         }
 	}
+}
+
+void DisplayDriver::drawText(int x, int y, int size, char* text) {
+    
 }

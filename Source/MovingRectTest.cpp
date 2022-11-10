@@ -1,7 +1,7 @@
 #include "UserInputHandler.h"
 #include "MovingRectTest.h"
 
-void MovingRectTest::Start(DisplayDriver display, uint speed, uint16_t BackgroundColor, uint16_t RectangleColor) {
+void MovingRectTest::Start(DisplayDriver display, uint speed, uint16_t backgroundColor, uint16_t rectangleColor, uint16_t borderColor) {
     int y = 0; // needs to be able to go negative for when it goes too high
     int x = 0; // needs to be able to go negative for when it goes too far left
     while (true) {
@@ -24,8 +24,8 @@ void MovingRectTest::Start(DisplayDriver display, uint speed, uint16_t Backgroun
             x = 0;
         }
         
-        display.setEntireBuffer(BackgroundColor);
-        display.drawRect(x, y, 50, 10, RectangleColor);
+        display.fillBuffer(backgroundColor);
+        display.drawRect(x, y, 50, 10, rectangleColor, 1, borderColor); // 1 px border
         display.renderBuffer();
         x += speed;
     }
