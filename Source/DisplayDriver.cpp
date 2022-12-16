@@ -186,6 +186,28 @@ void DisplayDriver::drawRect(int x, int y, int width, int height, uint16_t backg
 	}
 }
 
+int DisplayDriver::drawChar(int x, int y, char c, int size) {
+    return 1;
+}
+
 void DisplayDriver::drawText(int x, int y, int size, char* text) {
-    
+    for (int i = 0; text[i] != '\0'; i++) { // loop through all characters until the null byte is found
+        x += drawChar(x, y, text[i], size);// draw individual character (returns width)
+    }
+}
+
+void DisplayDriver::testDisplay() {
+    absolute_time_t start = get_absolute_time();
+
+    fillBuffer(Black);
+    renderBuffer();
+
+    absolute_time_t end = get_absolute_time();
+
+    int64_t timeDiff = absolute_time_diff_us(start, end);
+
+    char str[20];
+    sprintf(str, "%d", timeDiff);
+
+    drawText(0, 0, 25, str);
 }

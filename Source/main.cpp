@@ -17,18 +17,9 @@ int main() { // main entrypoint
 
     //GameLoader::RenderMainMenu();
 
-    absolute_time_t start = get_absolute_time();
+    //display.testDisplay();
 
-    display.fillBuffer(Black);
-    display.renderBuffer();
-
-    absolute_time_t end = get_absolute_time();
-
-    int64_t timeDiff = absolute_time_diff_us(start, end);
-
-    display.drawText()
-
-    //MovingRectTest::Start(display, 5, Black, Green); // yields indefinitely
+    MovingRectTest::Start(display, 5, Black, Green, White); // yields indefinitely
 
     return 0;
 }

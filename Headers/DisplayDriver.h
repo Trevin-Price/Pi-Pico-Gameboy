@@ -3,6 +3,7 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include <cstring>
+#include <cstdio> // used for sprintf
 #include <cstdlib>
 #include <stdint.h>
 
@@ -48,11 +49,13 @@ class DisplayDriver {
         uint displayWidth;
         uint displayHeight;
         void initDisplay();
+        void testDisplay();
         void drawRect(int x, int y, int width, int height, uint16_t color, int borderThickness, uint16_t borderColor);
         void drawPixel(int x, int y, uint16_t color);
         void renderBuffer();
         void fillBuffer(uint16_t color);
         void drawText(int x, int y, int size, char* text);
+        int drawChar(int x, int y, char c, int size);
 
         void writeData(void *buffer, int bytes);
         void writeCommandParameter(uint8_t data);
