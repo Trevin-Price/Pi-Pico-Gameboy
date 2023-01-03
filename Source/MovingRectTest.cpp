@@ -8,10 +8,10 @@ void MovingRectTest::Start(DisplayDriver display, uint speed, uint16_t backgroun
         
         UserInputHandler::updateInput();
             
-        if (UserInputHandler::Buttons[0])
+        if (UserInputHandler::Buttons[4])
             y++;
 
-        if (UserInputHandler::Buttons[1])
+        if (UserInputHandler::Buttons[5])
             y--;
         
         if (y >= ((int) display.displayHeight)) {

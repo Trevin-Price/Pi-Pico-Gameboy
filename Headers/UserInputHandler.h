@@ -1,6 +1,6 @@
 #pragma once
 
-#define NumberOfButtons 2
+#define NumberOfButtons 6
 
 class UserInputHandler {
     static uint buttonPins[NumberOfButtons]; // make sure to not over allocate (see NumberOfButtons definition)

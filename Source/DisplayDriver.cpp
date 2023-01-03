@@ -113,6 +113,8 @@ void DisplayDriver::initDisplay() {
     writeData(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // data to correct negative gamma, need to see individually what this data does
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
+    // gamma fixes make it so the color is a little more saturated
+
     writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode (read and write scanning direction of frame memory)
     writeCommandParameter(0xE0); // this sets the rotation of the display (page 127 of datasheet, these are 6 bits), 0x48 is default, 0xE0 = 11100000 (flip X, flip Y, swap rows and colums (rotate)), I forgot to swap the declared sizes  of columns and rows and was debugging the issue for a while (lines 133 and 139)
 
@@ -197,7 +199,15 @@ void DisplayDriver::drawText(int x, int y, int size, char* text) {
 }
 
 void DisplayDriver::testDisplay() {
-    absolute_time_t start = get_absolute_time();
+    fillBuffer(Red);
+    renderBuffer();
+    /*while (true) {
+        for (uint8_t color = 0x0000; color < 0xFFFF; color++) {
+            fillBuffer(color);
+            renderBuffer();
+        }
+    }*/
+    /*absolute_time_t start = get_absolute_time();
 
     fillBuffer(Black);
     renderBuffer();
@@ -209,5 +219,5 @@ void DisplayDriver::testDisplay() {
     char str[20];
     sprintf(str, "%d", timeDiff);
 
-    drawText(0, 0, 25, str);
+    drawText(0, 0, 25, str);*/
 }
