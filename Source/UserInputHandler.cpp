@@ -8,7 +8,7 @@ void UserInputHandler::updateInput() {
     bool newVal = false;
     for (int i = 0; i < NumberOfButtons; i++) { // NumberOfButtons defined in UserInput.h
         newVal = gpio_get(buttonPins[i]);
-        if (oppositeButtons[i] && Buttons[oppositeButtons[i]-1]) // check that oppositeButtons[i] != 0
+        if (oppositeButtons[i] && Buttons[oppositeButtons[i]-1]) // check that oppositeButtons[i] != 0 (0 means no opposite)
             Buttons[i] = false;
         else
             Buttons[i] = newVal;
