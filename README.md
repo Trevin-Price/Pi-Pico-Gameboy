@@ -1,1 +1,5 @@
-# Pi-Pico-Gameboy
+# Raspberry Pi Pico Gameboy
+
+## Dependencies
+
+- Pico SDK
