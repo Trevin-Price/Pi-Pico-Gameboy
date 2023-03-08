@@ -108,10 +108,7 @@ void SnakeGame::deleteSnakeTailTip() {
     Vector2 positionToBeErased = snakePositions.front() * SNAKE_SEGMENT_SIZE;
     DisplayDriver::renderRect(positionToBeErased, SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, BACKGROUND_COLOR);
 
-    std::vector<double> myVec = { 1.0 };
-    myVec.erase((std::vector<double>::const_iterator) myVec.begin());
-
-    //snakePositions.erase(snakePositions.begin());
+    snakePositions.erase(snakePositions.begin());
 }
 
 bool SnakeGame::isSnakeOnSquare(Vector2 position) { // I should switch to a hash map to optimize it
