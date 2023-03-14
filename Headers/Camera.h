@@ -11,8 +11,8 @@ public:
     void CalculateMatrices();
     Camera();
 
-    Vector3 position = Vector3(0, 0, 0);
-    Vector3 rotation = Vector3(0, 0, 0); // degrees
+    Vector3 Position = Vector3(0, 0, 0);
+    Vector3 Rotation = Vector3(0, 0, 0); // degrees
 
     Matrix overallMatrix = Matrix(4, 4);
 private:

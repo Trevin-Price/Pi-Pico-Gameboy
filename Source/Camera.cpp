@@ -18,11 +18,11 @@ Camera::Camera() {
 }
 
 void Camera::CalculateMatrices() {
-    positionMatrix[0][3] = -position.x;
-    positionMatrix[1][3] = -position.y;
-    positionMatrix[2][3] = -position.z;
+    positionMatrix[3][1] = -Position.x;
+    positionMatrix[3][2] = -Position.y;
+    positionMatrix[3][3] = -Position.z;
 
-    Vector3 cameraRotationRadians = rotation * deg2rad;
+    Vector3 cameraRotationRadians = Rotation * deg2rad;
 
     rotationMatrix1[1][1] = cos(cameraRotationRadians.x);
     rotationMatrix1[1][2] = sin(cameraRotationRadians.x);

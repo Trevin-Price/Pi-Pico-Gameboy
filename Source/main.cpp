@@ -1,6 +1,7 @@
 #include "DisplayDriver.h"
 #include "UserInputHandler.h"
 #include "MainMenu.h"
+#include "DisplayTests.h"
 
 /*
 
@@ -21,9 +22,11 @@
 
 int main() { // main entrypoint
     DisplayDriver::initDisplay(); // initiate the display (resolution, pins), pin 22 could swap to pin 17, but I didn't use it because it'd be a little confusing having a digital pin being used in the middle of where I used SP pins
-    UserInputHandler::initInput(); // initiate the device
+    DisplayTests::test3D();
+    
+    //UserInputHandler::initInput(); // initiate the device
 
-    MainMenu::startMainLoop();
+    //MainMenu::startMainLoop();
 
     return 0;
 }

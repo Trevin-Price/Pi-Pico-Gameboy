@@ -74,7 +74,7 @@ class DisplayDriver {
         static double skew;
         static Matrix displayMatrix;
 
-        static Vector2 render3DPoint(Vector3 point, Camera camera);
+        static Matrix render3DPoint(Vector3 point, Camera camera);
         static void calculateDisplayMatrix();
 
         static void initDisplay();

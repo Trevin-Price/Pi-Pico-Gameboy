@@ -12,11 +12,11 @@ Matrix::Matrix(uint8_t width, uint8_t height) {
 }
 
 double* Matrix::operator [](uint8_t index) {
-    if (index > Matrix::width) {
+    if (index > width) {
         // add error here
     }
 
-    return Matrix::matrixValues[index];
+    return matrixValues[index];
 }
 
 Matrix Matrix::operator *(Matrix& m1) {
@@ -25,10 +25,10 @@ Matrix Matrix::operator *(Matrix& m1) {
     for (uint8_t y = 0; y < productMatrix.height; y++) {
         for (uint8_t x = 0; x < productMatrix.width; x++) {
             double newVal = 0;
-            for (uint8_t m1x = 0; m1x < this->width; m1x++) {
-                if (m1x >= m1.height) 
+            for (uint8_t m2x = 0; m2x < this->width; m2x++) {
+                if (m2x >= m1.height) 
                     break;
-                newVal += (this->matrixValues[m1x][y] * m1.matrixValues[x][m1x]);
+                newVal += (this->matrixValues[m2x][y] * m1.matrixValues[x][m2x]);
             }
             productMatrix.matrixValues[x][y] = newVal;
         }

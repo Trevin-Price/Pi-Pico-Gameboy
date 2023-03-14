@@ -54,11 +54,13 @@ uint DisplayDriver::actualBaudRate = 0; // initialization
 uint64_t DisplayDriver::fillAndRenderBufferTime = 0;
 
 double DisplayDriver::skew = 0; // 0 units of skew
-double DisplayDriver::focalLength = 1; // focusses 1 unit ahead of itself
-Vector2 DisplayDriver::sensorSize = Vector2(DISPLAY_WIDTH/100, DISPLAY_HEIGHT/100); // sees 3.2 units wide, 2.4 units high
+double DisplayDriver::focalLength = 0.1; // focusses 1 unit ahead of itself
+Vector2 DisplayDriver::sensorSize = Vector2(DISPLAY_WIDTH/10000.0, DISPLAY_HEIGHT/10000.0); // sees 3.2 units wide, 2.4 units high
 Matrix DisplayDriver::displayMatrix = Matrix(4, 4);
 
 void DisplayDriver::initDisplay() {
+    calculateDisplayMatrix();
+
     displayMatrix[1][2] = -1;
     displayMatrix[2][2] = 1;
     displayMatrix[3][3] = 1;
@@ -455,9 +457,7 @@ void DisplayDriver::calculateDisplayMatrix() {
     displayMatrix[1][0] = skew;
 }
 
-Vector2 DisplayDriver::render3DPoint(Vector3 point, Camera camera) {
-    calculateDisplayMatrix();
-
+Matrix DisplayDriver::render3DPoint(Vector3 point, Camera camera) {
     Matrix positionMatrix = Matrix(1, 4);
     positionMatrix[0][0] = point.x;
     positionMatrix[0][1] = point.y;
@@ -469,5 +469,6 @@ Vector2 DisplayDriver::render3DPoint(Vector3 point, Camera camera) {
     //double distanceFromCamera = screenPosMatrix[0][2];
 
     //renderRect(screenPos - 2, 4, 4, Red);
-    return screenPos;
+    
+    return camera.overallMatrix;
 }

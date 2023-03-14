@@ -74,7 +74,7 @@ void DisplayTests::startRectTest() {
     uint16_t rectangleColor = Yellow;
     uint16_t borderColor = Black;
     bool Rainbow = true;
-    
+
     int y = 0; // needs to be able to go negative for when it goes too high
     int x = 0; // needs to be able to go negative for when it goes too far left
     int red = 31;
@@ -86,7 +86,7 @@ void DisplayTests::startRectTest() {
 
     DisplayDriver::fillBuffer(backgroundColor);
     DisplayDriver::renderBuffer();
-    
+
     while (true) {
         absolute_time_t start = get_absolute_time();
 
@@ -147,7 +147,7 @@ void DisplayTests::startRectTest() {
         }
 
         UserInputHandler::updateInput();
-            
+
         if (UserInputHandler::Buttons[0])
             y++;
 
@@ -158,7 +158,7 @@ void DisplayTests::startRectTest() {
 
         if (UserInputHandler::Buttons[4])
             break; // if the user presses the back button, the loop ends
-        
+
         if (y >= ((int) DISPLAY_HEIGHT)) {
             y = 0;
         } else if (y < 0) {
@@ -226,7 +226,7 @@ void DisplayTests::directRenderTest() { // 27047~27048 microseconds per frame or
 Vector2 textPos = Vector2::zero;
 
 void drawTextNewLine(std::string text) {
-    DisplayDriver::drawText(textPos, text, Green);
+    DisplayDriver::drawText(textPos, text, Black);
     textPos.y += FONT_HEIGHT;
 }
 
@@ -253,11 +253,34 @@ void DisplayTests::renderDevStats() {
 
 void DisplayTests::test3D() {
     Camera camera = Camera();
+    camera.Position.z = -5;
     camera.CalculateMatrices();
 
     std::vector<Vector2> vertices = {};
     std::vector<Vector2> vertices2 = {};
 
+    Matrix M1 = Matrix(2, 2);
+    Matrix M2 = Matrix(1, 2);
+    M1[0][0] = 1;
+    M1[0][1] = 2;
+    M1[1][0] = 3;
+    M1[1][1] = 4;
+
+    M2[0][0] = 8;
+    M2[0][1] = 7;
+
+    Matrix realPos = DisplayDriver::render3DPoint(Vector3(2, 2, 2), camera);// + Vector2(DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2);
+    drawTextNewLine(std::to_string(realPos.width));
+    drawTextNewLine(std::to_string(realPos.height));
+    for (uint8_t x = 0; x < realPos.width; x++) {
+        for (uint8_t y = 0; y < realPos.height; y++)
+            drawTextNewLine(std::to_string(x).append("x").append(std::to_string(y)).append(" = ").append(std::to_string(realPos[x][y])));
+    }
+    // should've been 3500, 1000, 2, 1 (instead was 1000, 1000, 2, 21)
+    // matrix calculations as a whole work fine, but when it comes to using them for 3D stuff, it all falls apart.
+    DisplayDriver::renderBuffer();
+
+    /*
     vertices.push_back(DisplayDriver::render3DPoint(Vector3(1, -1, 1), camera));
     vertices.push_back(DisplayDriver::render3DPoint(Vector3(1, 1, 1), camera));
     vertices.push_back(DisplayDriver::render3DPoint(Vector3(-1, 1, 1), camera));
@@ -269,16 +292,18 @@ void DisplayTests::test3D() {
     vertices2.push_back(DisplayDriver::render3DPoint(Vector3(-1, -1, -1), camera));
 
     for (Vector2 const& pos: vertices) {
-        Vector2 realPos = pos + Vector2(DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2) - 2;
-        realPos.y = DISPLAY_HEIGHT - realPos.x;
-        DisplayDriver::renderRect(realPos, 4, 4, Red);
+        Vector2 realPos = pos + Vector2(DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2);
+        realPos.y = DISPLAY_HEIGHT - realPos.x; // vertical flipping because postive Y in 3D is up, but positive Y in 2D is down
+        DisplayDriver::drawRect(realPos - 2, 4, 4, Red);
         drawTextNewLine(((std::string)"Coord: ").append(std::to_string(realPos.x)).append("x").append(std::to_string(realPos.y)));
     }
 
-    for (Vector2 const& pos: vertices) {
-        Vector2 realPos = pos + Vector2(DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2) - 2;
-        realPos.y = DISPLAY_HEIGHT - realPos.x;
-        DisplayDriver::renderRect(realPos, 4, 4, Green);
+    for (Vector2 const& pos: vertices2) {
+        Vector2 realPos = pos + Vector2(DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2);
+        realPos.y = DISPLAY_HEIGHT - realPos.x; // vertical flipping because postive Y in 3D is up, but positive Y in 2D is down
+        DisplayDriver::drawRect(realPos - 2, 4, 4, Green);
         drawTextNewLine(((std::string)"Coord: ").append(std::to_string(realPos.x)).append("x").append(std::to_string(realPos.y)));
-    }
+    }*/
+
+    DisplayDriver::renderBuffer();
 }
