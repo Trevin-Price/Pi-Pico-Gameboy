@@ -69,12 +69,12 @@ class DisplayDriver {
         static uint actualBaudRate; // in hz
         static uint64_t fillAndRenderBufferTime; // time it takes to fill and render the buffer to the display
 
-        static Vector2 sensorSize;
+        static double xFOV;
         static double focalLength;
         static double skew;
-        static Matrix displayMatrix;
+        static Vector2 sensorSize;
 
-        static Matrix render3DPoint(Vector3 point, Camera camera);
+        static bool render3DPoint(Vector3 point, Camera camera, Vector2 *pos);
         static void calculateDisplayMatrix();
 
         static void initDisplay();
@@ -95,4 +95,8 @@ class DisplayDriver {
         static void writeData(void *buffer, int numberOfBytes);
         static void writeCommandParameter(uint8_t data);
         static void writeCommand(uint8_t cmd);
+    private:
+        static Matrix displayMatrix;
+        static Matrix depthMatrix;
+        static Matrix positionMatrix;
 };

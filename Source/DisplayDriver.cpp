@@ -54,9 +54,13 @@ uint DisplayDriver::actualBaudRate = 0; // initialization
 uint64_t DisplayDriver::fillAndRenderBufferTime = 0;
 
 double DisplayDriver::skew = 0; // 0 units of skew
-double DisplayDriver::focalLength = 0.1; // focusses 1 unit ahead of itself
-Vector2 DisplayDriver::sensorSize = Vector2(DISPLAY_WIDTH/10000.0, DISPLAY_HEIGHT/10000.0); // sees 3.2 units wide, 2.4 units high
+double DisplayDriver::focalLength = 10; // focusses 10 units ahead of itself
+double DisplayDriver::xFOV = 90;
+
+Vector2 DisplayDriver::sensorSize = Vector2(tan(DisplayDriver::xFOV/2*deg2rad)*DisplayDriver::focalLength, tan((double)DISPLAY_HEIGHT/(double)DISPLAY_WIDTH*DisplayDriver::xFOV/2*deg2rad)*DisplayDriver::focalLength); // sees 3.2 units wide, 2.4 units high
 Matrix DisplayDriver::displayMatrix = Matrix(4, 4);
+Matrix DisplayDriver::positionMatrix = Matrix(1, 4);
+Matrix DisplayDriver::depthMatrix = Matrix(4, 4);
 
 void DisplayDriver::initDisplay() {
     calculateDisplayMatrix();
@@ -64,6 +68,10 @@ void DisplayDriver::initDisplay() {
     displayMatrix[1][2] = -1;
     displayMatrix[2][2] = 1;
     displayMatrix[3][3] = 1;
+
+    positionMatrix[0][3] = 1;
+    depthMatrix[2][2] = 1;
+    depthMatrix[3][3] = 1;
 
     actualBaudRate = spi_init(SPI_CHANNEL, 75 * 1000000); // initiate the device with buadrate/frequency at 75MHz, though it wont be able to hit this, so it'll limit down a bit lower (62~63MHz in testing)
 
@@ -457,18 +465,33 @@ void DisplayDriver::calculateDisplayMatrix() {
     displayMatrix[1][0] = skew;
 }
 
-Matrix DisplayDriver::render3DPoint(Vector3 point, Camera camera) {
-    Matrix positionMatrix = Matrix(1, 4);
+bool DisplayDriver::render3DPoint(Vector3 point, Camera camera, Vector2 *pos) {
     positionMatrix[0][0] = point.x;
     positionMatrix[0][1] = point.y;
     positionMatrix[0][2] = point.z;
-    positionMatrix[0][3] = 1;
 
     Matrix screenPosMatrix = displayMatrix * camera.overallMatrix * positionMatrix;
-    Vector2 screenPos = Vector2(screenPosMatrix[0][0], screenPosMatrix[0][1]);
-    //double distanceFromCamera = screenPosMatrix[0][2];
 
-    //renderRect(screenPos - 2, 4, 4, Red);
+    double depthMultiplier = 1/screenPosMatrix[0][2];
+    depthMatrix[0][0] = depthMultiplier;
+    depthMatrix[1][1] = depthMultiplier;
+    screenPosMatrix = screenPosMatrix * depthMatrix; // account for depth (add perspective)
     
-    return camera.overallMatrix;
+    if (screenPosMatrix[0][2] > 0) { // make sure it's in front of the camera
+        pos->x = DISPLAY_WIDTH - (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
+        pos->y = DISPLAY_HEIGHT - (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
+        // DISPLAY_ - X is a stupid fix
+        // this is an issue to do with the order I multiply matrices, or something
+        // basically, prior to accounting for depth, matrix[0][2] is the negative version of what it should be
+        // because I couldn't figure out why after 4 hours of trying, I slapped on a bandaid fix and called it a day
+        // I could optimize this math, but to show that it's a bandaid fix, I'm leaving it as is
+
+        // there is also another issue related to y coordinate not working correctly, and this is likely related
+
+        //renderRect(screenPos - 2, 4, 4, Red);
+        
+        return true;
+    }
+    
+    return false;
 }

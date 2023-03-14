@@ -12,7 +12,7 @@ public:
     Camera();
 
     Vector3 Position = Vector3(0, 0, 0);
-    Vector3 Rotation = Vector3(0, 0, 0); // degrees
+    Vector3 Rotation = Vector3(0, 0, 0); // degrees, (Pitch, Yaw, Roll)
 
     Matrix overallMatrix = Matrix(4, 4);
 private:
