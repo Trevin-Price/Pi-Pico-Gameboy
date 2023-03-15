@@ -54,16 +54,16 @@ void SnakeGame::startGame() {
         switch (currentDirection)
         {
         case (0): // down button
-            newPosition.y += 1;
+            newPosition.Y += 1;
             break;
         case (1): // right button
-            newPosition.x += 1;
+            newPosition.X += 1;
             break;
         case (2): // up button
-            newPosition.y -= 1;
+            newPosition.Y -= 1;
             break;
         case (3): // left button
-            newPosition.x -= 1;
+            newPosition.X -= 1;
             break;
         }
 
@@ -113,7 +113,7 @@ void SnakeGame::deleteSnakeTailTip() {
 
 bool SnakeGame::isSnakeOnSquare(Vector2 position) { // I should switch to a hash map to optimize it
     for (Vector2 const& segmentPosition: snakePositions) {
-        if (segmentPosition.x == position.x && segmentPosition.y == position.y)
+        if (segmentPosition.X == position.X && segmentPosition.Y == position.Y)
             return true;
     }
 
@@ -121,7 +121,7 @@ bool SnakeGame::isSnakeOnSquare(Vector2 position) { // I should switch to a hash
 }
 
 bool SnakeGame::isInvalidPosition(Vector2 position) {
-    if (position.x >= GRID_WIDTH || position.x < 0 || position.y >= GRID_HEIGHT || position.y < 0)
+    if (position.X >= GRID_WIDTH || position.X < 0 || position.Y >= GRID_HEIGHT || position.Y < 0)
         return true;
     return false;
 }
@@ -131,15 +131,15 @@ void SnakeGame::addFood() {
     while (isSnakeOnSquare(foodPosition))
         foodPosition = Vector2(rand() % GRID_WIDTH, rand() % GRID_HEIGHT); // keep regenerating until there is a free square
 
-    DisplayDriver::renderRect(Vector2(foodPosition.x * SNAKE_SEGMENT_SIZE, foodPosition.y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, FOOD_COLOR);
+    DisplayDriver::renderRect(Vector2(foodPosition.X * SNAKE_SEGMENT_SIZE, foodPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, FOOD_COLOR);
 }
 
 void SnakeGame::renderWholeSnake() {
     for (Vector2 const& segmentPosition: snakePositions) {
-        DisplayDriver::renderRect(Vector2(segmentPosition.x * SNAKE_SEGMENT_SIZE, segmentPosition.y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
+        DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
     }
 }
 
 void SnakeGame::renderNewSnakeSegment(Vector2 segmentPosition) {
-    DisplayDriver::renderRect(Vector2(segmentPosition.x * SNAKE_SEGMENT_SIZE, segmentPosition.y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
+    DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
 }

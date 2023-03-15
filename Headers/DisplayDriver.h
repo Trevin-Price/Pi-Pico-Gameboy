@@ -69,34 +69,27 @@ class DisplayDriver {
         static uint actualBaudRate; // in hz
         static uint64_t fillAndRenderBufferTime; // time it takes to fill and render the buffer to the display
 
-        static double xFOV;
-        static double focalLength;
-        static double skew;
-        static Vector2 sensorSize;
-
-        static bool render3DPoint(Vector3 point, Camera camera, Vector2 *pos);
-        static void calculateDisplayMatrix();
-
         static void initDisplay();
+        
         static void drawRect(Vector2 point, int width, int height, uint16_t color);
         static void renderRect(Vector2 point, int width, int height, uint16_t color);
         static void drawOutlinedRect(Vector2 point, int width, int height, uint16_t color, int borderThickness, uint16_t borderColor);
         static void renderOutlinedRect(Vector2 point, int width, int height, uint16_t color, int borderThickness, uint16_t borderColor);
         static void drawPixel(Vector2 point, uint16_t color);
+
         static void renderBuffer();
         static void fillBuffer(uint16_t color);
+
         static void drawCenteredText(Vector2 point, std::string text, uint16_t textColor);
         static int drawChar(Vector2 point, char c, uint16_t Color);
         static void drawText(Vector2 point, std::string text, uint16_t textColor);
         static void renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor);
+
         static void ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor);
         static int ALTdrawChar(Vector2 point, char c, uint16_t Color);
-
+        
+    private:
         static void writeData(void *buffer, int numberOfBytes);
         static void writeCommandParameter(uint8_t data);
         static void writeCommand(uint8_t cmd);
-    private:
-        static Matrix displayMatrix;
-        static Matrix depthMatrix;
-        static Matrix positionMatrix;
 };

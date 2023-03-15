@@ -32,7 +32,7 @@ public:
     Vector2& operator +=(const double&);
     Vector2& operator -=(const double&);
 
-    double x, y;
+    double X, Y;
 };
 
 
@@ -65,5 +65,5 @@ public:
     Vector3& operator +=(const double&);
     Vector3& operator -=(const double&);
 
-    double x, y, z;
+    double X, Y, Z;
 };

@@ -227,7 +227,7 @@ Vector2 textPos = Vector2::zero;
 
 void drawTextNewLine(std::string text) {
     DisplayDriver::drawText(textPos, text, Black);
-    textPos.y += FONT_HEIGHT;
+    textPos.Y += FONT_HEIGHT;
 }
 
 void DisplayTests::renderDevStats() {
@@ -245,7 +245,7 @@ void DisplayTests::renderDevStats() {
         UserInputHandler::updateInput();
 
         if (UserInputHandler::Buttons[4]) {
-            textPos.y = 0; // line count
+            textPos.Y = 0; // line count
             break; // exit button
         }
     }
@@ -253,41 +253,34 @@ void DisplayTests::renderDevStats() {
 
 void DisplayTests::test3D() {
     Camera camera = Camera();
-    camera.Position.z = 5; // with 0 rotation, we face the negative z direction, meaning positive X is left, and Y is still up
-    camera.CalculateMatrices();
+    camera.Position.Z = 3; // with 0 rotation, we face the negative z direction, meaning positive X is left, and Y is still up
+    camera.Position.X = 0.5;
+    camera.Position.Y = 0.5;
 
-    std::vector<Vector2> vertices = {};
-    std::vector<Vector2> vertices2 = {};
+    //camera.Rotation.X = 15;
+    camera.focalLength = 2; // block is 4 units in front of camera
+    camera.calculateSensorSize();
+    camera.calculatePositionAndRotationMatrices();
+
+    std::vector<Vector3> vertices = {
+        Vector3(1, 1, 1),
+        Vector3(1, 1, 0),
+        Vector3(0, 1, 1),
+        Vector3(0, 1, 0),
+
+        Vector3(1, 0, 1),
+        Vector3(1, 0, 0),
+        Vector3(0, 0, 1),
+        Vector3(0, 0, 0)
+    };
     
     Vector2 myPos = Vector2::zero;
-    
-    if (DisplayDriver::render3DPoint(Vector3(1, 1, 1), camera, &myPos))
-        vertices.push_back(myPos);
-    /*if (DisplayDriver::render3DPoint(Vector3(1, 1, -1), camera, &myPos))
-        vertices.push_back(myPos);
-    if (DisplayDriver::render3DPoint(Vector3(-1, 1, 1), camera, &myPos))
-        vertices.push_back(myPos);
-    if (DisplayDriver::render3DPoint(Vector3(-1, 1, -1), camera, &myPos))
-        vertices.push_back(myPos);*/
 
-    
-    if (DisplayDriver::render3DPoint(Vector3(1, -1, 1), camera, &myPos))
-        vertices2.push_back(myPos);
-    /*if (DisplayDriver::render3DPoint(Vector3(1, -1, -1), camera, &myPos))
-        vertices2.push_back(myPos);
-    if (DisplayDriver::render3DPoint(Vector3(-1, -1, 1), camera, &myPos))
-        vertices2.push_back(myPos);
-    if (DisplayDriver::render3DPoint(Vector3(-1, -1, -1), camera, &myPos))
-        vertices2.push_back(myPos);*/
-
-    for (Vector2 const& pos: vertices) {
-        DisplayDriver::drawRect(pos - 2, 4, 4, Red);
-        //drawTextNewLine(((std::string)"Coord: ").append(std::to_string(pos.x)).append("x").append(std::to_string(pos.y)));
-    }
-
-    for (Vector2 const& pos: vertices2) {
-        DisplayDriver::drawRect(pos - 2, 4, 4, Green);
-        //drawTextNewLine(((std::string)"Coord: ").append(std::to_string(pos.x)).append("x").append(std::to_string(pos.y)));
+    for (Vector3 const& pos3D: vertices) {
+        if (camera.project3DTo2D(pos3D, &myPos)) {
+            DisplayDriver::drawRect(myPos - 2, 4, 4, Red);
+            drawTextNewLine(((std::string)"Coord: ").append(std::to_string((int)round(myPos.X))).append("x").append(std::to_string((int)round(myPos.Y))));
+        }
     }
 
     DisplayDriver::renderBuffer();
