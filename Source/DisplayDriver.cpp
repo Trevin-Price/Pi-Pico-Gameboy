@@ -168,14 +168,14 @@ void DisplayDriver::initDisplay() {
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
     writeCommandParameter(0x00); // starts at 0
     writeCommandParameter(0x00);
-    writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the width
-    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the width
+    writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the size.X
+    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the size.X
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
     writeCommandParameter(0x00); // the command takes 4 bytes of data
     writeCommandParameter(0x00); // the first 2 are the first y coordinate, starting at px 0
     writeCommandParameter(DISPLAY_HEIGHT >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the height
+    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE); // set it from setting mode to write mode
 
@@ -194,34 +194,34 @@ void DisplayDriver::renderBuffer() {
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
     writeCommandParameter(0x00); // starts at 0
     writeCommandParameter(0x00);
-    writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the width
-    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the width
+    writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the size.X
+    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the size.X
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
     writeCommandParameter(0x00); // the command takes 4 bytes of data
     writeCommandParameter(0x00); // the first 2 are the first y coordinate, starting at px 0
     writeCommandParameter(DISPLAY_HEIGHT >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the height
+    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE); // set it from setting mode to write mode
 
     writeData(buffer, BUFFER_SIZE);
 }
 
-void DisplayDriver::drawPixel(Vector2 point, uint16_t color) {
+void DisplayDriver::drawPixel(const Vector2 point, uint16_t color) {
     buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)] = color;
 }
 
 
-void DisplayDriver::drawRect(Vector2 point, int width, int height, uint16_t backgroundColor) {
+void DisplayDriver::drawRect(Vector2 point, const Vector2 size, uint16_t backgroundColor) {
     point = Vector2(round(point.X), round(point.Y));
-    uint16_t *base = &buffer[(int)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display width because it's left to right)
+    uint16_t *base = &buffer[(int)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
 
-	for (int w = 0; w < width; w++) { // iterate through the width
+	for (int w = 0; w < size.X; w++) { // iterate through the size.X
         if (w + point.X < DISPLAY_WIDTH) {
             uint16_t *loc = base + w; // get a pointer to the pixel at offset w
             
-            for (int h = 0; h < height; h++) { // iterate through the height
+            for (int h = 0; h < size.Y; h++) { // iterate through the size.Y
                 if (h + point.Y < DISPLAY_HEIGHT)
                     *(loc+DISPLAY_WIDTH*h) = backgroundColor;
             }
@@ -229,16 +229,16 @@ void DisplayDriver::drawRect(Vector2 point, int width, int height, uint16_t back
 	}
 }
 
-void DisplayDriver::drawOutlinedRect(Vector2 point, int width, int height, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
-    uint16_t *base = &buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display width because it's left to right)
+void DisplayDriver::drawOutlinedRect(const Vector2 point, const Vector2 size, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
+    uint16_t *base = &buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
 
-	for (int w = 0; w < width; w++) { // iterate through the width
+	for (int w = 0; w < size.X; w++) { // iterate through the size.X
         if (w + point.X < DISPLAY_WIDTH) {
             uint16_t *loc = base + w; // get a pointer to the pixel at offset w
             
-            for (int h = 0; h < height; h++) { // iterate through the height
+            for (int h = 0; h < size.Y; h++) { // iterate through the size.Y
                 if (h + point.Y < DISPLAY_HEIGHT) {
-                    if (w < borderThickness || h < borderThickness || (width-w) <= borderThickness || (height-h) <= borderThickness) // <= cause the greater range never gets hit (0-239, never touches 240)
+                    if (w < borderThickness || h < borderThickness || (size.X-w) <= borderThickness || (size.Y-h) <= borderThickness) // <= cause the greater range never gets hit (0-239, never touches 240)
                         *(loc+DISPLAY_WIDTH*h) = borderColor; // add DISPLAY_WIDTH to loc, dereferencing pointer so I can write to it
                         // adding DISPLAY_WIDTH because we need to move down one pixel, which is the same as moving across the entire display once
                     else
@@ -250,7 +250,7 @@ void DisplayDriver::drawOutlinedRect(Vector2 point, int width, int height, uint1
 }
 
 
-int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
+int DisplayDriver::drawChar(const Vector2 point, char c, uint16_t Color) { // font size is currently forced
     const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
@@ -268,28 +268,28 @@ int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color) { // font siz
         }
     }
 
-    return FONT_WIDTH; // width of each character
+    return FONT_WIDTH; // size.X of each character
 }
 
 void DisplayDriver::drawCenteredText(Vector2 point, std::string text, uint16_t textColor) { // centered around (x, y)
-    int width = static_cast<int>(text.size()) * FONT_WIDTH; // font is 8 px wide
+    uint width = static_cast<uint>(text.size()) * FONT_WIDTH; // font is 8 px wide
     point -= Vector2(width/2, FONT_HEIGHT/2);
 
     for (char const &character : text) { // loop through all characters
-        point.X += drawChar(point, character, textColor);// draw individual character (returns width)
+        point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
     }
 }
 
 void DisplayDriver::drawText(Vector2 point, std::string text, uint16_t textColor) { // x, y is the top left corner, renders left to right
     for (char const &character : text) { // loop through all characters
-        point.X += drawChar(point, character, textColor);// draw individual character (returns width)
+        point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
     }
 }
 
 
 
 // ALT text functions are a hacky fix to make text bigger.  A better fix would be a proper scaling font system, but that sounds annoying to implement, and I'd likely end up rarely using it
-int DisplayDriver::ALTdrawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
+int DisplayDriver::ALTdrawChar(const Vector2 point, char c, uint16_t Color) { // font size is currently forced
     const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
@@ -310,56 +310,56 @@ int DisplayDriver::ALTdrawChar(Vector2 point, char c, uint16_t Color) { // font 
         }
     }
 
-    return FONT_WIDTH*2; // width of each character
+    return FONT_WIDTH*2; // size.X of each character
 }
 
-void DisplayDriver::ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor) { // alternate is a hacky way to render 2x bigger text
-    int width = static_cast<int>(text.size()) * FONT_WIDTH * 2; // font is 2x wider than normal
-    int startX = point.X - width/2; // subtract half the width to reverse the offset
+void DisplayDriver::ALTdrawCenteredText(const Vector2 point, std::string text, uint16_t textColor) { // alternate is a hacky way to render 2x bigger text
+    uint width = static_cast<uint>(text.size()) * FONT_WIDTH * 2; // font is 2x wider than normal
+    int startX = point.X - width/2; // subtract half the size.X to reverse the offset
     int startY = point.Y - FONT_HEIGHT; // this font is 2x bigger than normal, and so it cancells out the divide by 2
 
     for (char const &character : text) { // loop through all characters
-        startX += ALTdrawChar(Vector2(startX, startY), character, textColor); // draw individual character (returns width, which is useless because text only has 2 possible widthes right now)
+        startX += ALTdrawChar(Vector2(startX, startY), character, textColor); // draw individual character (returns size.X, which is useless because text only has 2 possible size.Xes right now)
     }
 }
 
 
 
-void DisplayDriver::renderRect(Vector2 point, int width, int height, uint16_t rectColor) { // custom optimized render function
-    if (point.X + width > DISPLAY_WIDTH)
-        width = DISPLAY_WIDTH-point.X;
-    if (point.Y + height > DISPLAY_HEIGHT)
-        height = DISPLAY_HEIGHT-point.Y;
+void DisplayDriver::renderRect(const Vector2 point, Vector2 size, uint16_t rectColor) { // custom optimized render function
+    if (point.X + size.X > DISPLAY_WIDTH)
+        size.X = DISPLAY_WIDTH-point.X;
+    if (point.Y + size.Y > DISPLAY_HEIGHT)
+        size.Y = DISPLAY_HEIGHT-point.Y;
     
-    uint16_t *newBuffer = new uint16_t[width*height];
-    std::fill(newBuffer, newBuffer+width*height, rectColor);
+    uint16_t *newBuffer = new uint16_t[(uint)(size.X*size.Y)];
+    std::fill(newBuffer, newBuffer+(uint)(size.X*size.Y), rectColor);
 
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
     writeCommandParameter(((int) point.X) >> 8 & 0xFF); // starting x pos
     writeCommandParameter(((int) point.X) & 0xFF);
-    writeCommandParameter(((int) point.X+width-1) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.X+width-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
+    writeCommandParameter(((int) point.X+(uint)size.X-1) >> 8 & 0xFF);
+    writeCommandParameter(((int) point.X+(uint)size.X-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
     writeCommandParameter(((int) point.Y) >> 8 & 0xFF); // starting y pos
     writeCommandParameter(((int) point.Y) & 0xFF);
-    writeCommandParameter(((int) point.Y+height-1) >> 8 & 0xFF); // ending y pos
-    writeCommandParameter(((int) point.Y+height-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
+    writeCommandParameter(((int) point.Y+(uint)size.Y-1) >> 8 & 0xFF); // ending y pos
+    writeCommandParameter(((int) point.Y+(uint)size.Y-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
 
     writeCommand(COMMAND_MEMORY_WRITE);
 
-    writeData(newBuffer, width*height*sizeof(uint16_t)); // give it the base pointer
+    writeData(newBuffer, size.X*size.Y*sizeof(uint16_t)); // give it the base pointer
     
     delete [] newBuffer;
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderOutlinedRect(Vector2 point, int width, int height, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
-    int newWidth = width;
-    int newHeight = height;
-    if (point.X + width > DISPLAY_WIDTH)
+void DisplayDriver::renderOutlinedRect(const Vector2 point, const Vector2 size, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
+    int newWidth = size.X;
+    int newHeight = size.Y;
+    if (point.X + size.X > DISPLAY_WIDTH)
         newWidth = DISPLAY_WIDTH-point.X;
-    if (point.Y + height > DISPLAY_HEIGHT)
+    if (point.Y + size.Y > DISPLAY_HEIGHT)
         newHeight = DISPLAY_HEIGHT-point.Y;
 
     uint16_t *newBuffer = new uint16_t[newWidth*newHeight];
@@ -367,7 +367,7 @@ void DisplayDriver::renderOutlinedRect(Vector2 point, int width, int height, uin
 
     for (int newX = 0; newX < newWidth; newX++) {
         for (int newY = 0; newY < newHeight; newY++) {
-            if (newX < (borderThickness) || newX >= (width-borderThickness) || newY < borderThickness || newY >= (height-borderThickness))
+            if (newX < (borderThickness) || newX >= (size.X-borderThickness) || newY < borderThickness || newY >= (size.Y-borderThickness))
                 *(newBuffer+newX+newY*newWidth) = borderColor;
         }
     }
@@ -375,14 +375,14 @@ void DisplayDriver::renderOutlinedRect(Vector2 point, int width, int height, uin
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
     writeCommandParameter(((int) point.X) >> 8 & 0xFF);
     writeCommandParameter(((int) point.X) & 0xFF);
-    writeCommandParameter(((int) point.X+newWidth-1) >> 8 & 0xFF); // get the upper byte of the width
-    writeCommandParameter(((int) point.X+newWidth-1) & 0xFF); // get the lower byte of the width
+    writeCommandParameter(((int) point.X+newWidth-1) >> 8 & 0xFF); // get the upper byte of the size.X
+    writeCommandParameter(((int) point.X+newWidth-1) & 0xFF); // get the lower byte of the size.X
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
     writeCommandParameter(((int) point.Y) >> 8 & 0xFF); // the command takes 4 bytes of data
     writeCommandParameter(((int) point.Y) & 0xFF); // the first 2 are the first y coordinate, starting at px 0
     writeCommandParameter(((int) point.Y+newHeight-1) >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(((int) point.Y+newHeight-1) & 0xFF); // get the lower byte of the height
+    writeCommandParameter(((int) point.Y+newHeight-1) & 0xFF); // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE);
 
@@ -392,9 +392,9 @@ void DisplayDriver::renderOutlinedRect(Vector2 point, int width, int height, uin
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor) { // x, y is the top left corner, renders left to right
-    int width = static_cast<int>(text.size()) * FONT_WIDTH;
-    int height = FONT_HEIGHT;
+void DisplayDriver::renderText(const Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor) { // x, y is the top left corner, renders left to right
+    uint width = static_cast<int>(text.size()) * FONT_WIDTH;
+    uint height = FONT_HEIGHT;
 
     uint16_t* newBuffer = new uint16_t[width*height]; // allocate a buffer for the entire text size
     std::fill(newBuffer, newBuffer+width*height, backgroundColor);

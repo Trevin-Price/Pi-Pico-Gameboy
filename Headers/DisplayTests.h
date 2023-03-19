@@ -2,6 +2,7 @@
 
 #include "UserInputHandler.h"
 #include "DisplayDriver.h"
+#include "Cube.h"
 
 class DisplayTests {
     public:

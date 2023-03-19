@@ -169,7 +169,7 @@ void DisplayTests::startRectTest() {
             x = 0;
         }
 
-        DisplayDriver::renderOutlinedRect(Vector2(x, y), 50, 10, rectangleColor, 1, borderColor); // 1 px border
+        DisplayDriver::renderOutlinedRect(Vector2(x, y), Vector2(50, 10), rectangleColor, 1, borderColor); // 1 px border
         //DisplayDriver::renderRect(x, y, 50, 10, rectangleColor);
 
         int64_t deltaT = absolute_time_diff_us(start, get_absolute_time());
@@ -179,7 +179,7 @@ void DisplayTests::startRectTest() {
         if (newLength == oldTextLength) // renderText writes a background, so if the old is the same width as the new, it'll overwrite the old text, otherwise it needs to be done separately
             DisplayDriver::renderText(Vector2::zero, text, Black, backgroundColor);
         else {
-            DisplayDriver::renderRect(Vector2::zero, FONT_WIDTH*oldTextLength, FONT_HEIGHT, backgroundColor); // covers up the previous text
+            DisplayDriver::renderRect(Vector2::zero, Vector2(FONT_WIDTH*oldTextLength, FONT_HEIGHT), backgroundColor); // covers up the previous text
             DisplayDriver::renderText(Vector2::zero, text, Black, backgroundColor);
         }
         oldTextLength = newLength;
@@ -216,7 +216,7 @@ void DisplayTests::directRenderTest() { // 27047~27048 microseconds per frame or
         if (newLength == oldTextLength) // renderText writes a background, so if the old is the same width as the new, it'll overwrite the old text, otherwise it needs to be done separately
             DisplayDriver::renderText(Vector2::zero, text, textColor, backgroundColor);
         else {
-            DisplayDriver::renderRect(Vector2::zero, FONT_WIDTH*oldTextLength, FONT_HEIGHT, backgroundColor); // covers up the previous text
+            DisplayDriver::renderRect(Vector2::zero, Vector2(FONT_WIDTH*oldTextLength, FONT_HEIGHT), backgroundColor); // covers up the previous text
             DisplayDriver::renderText(Vector2::zero, text, textColor, backgroundColor);
         }
         oldTextLength = newLength;
@@ -226,12 +226,20 @@ void DisplayTests::directRenderTest() { // 27047~27048 microseconds per frame or
 Vector2 textPos = Vector2::zero;
 
 void drawTextNewLine(std::string text) {
-    DisplayDriver::drawText(textPos, text, Black);
+    for (char const &character : text) { // loop through all characters
+        if (character != '\n')
+            textPos.X += DisplayDriver::drawChar(textPos, character, Black);// draw individual character (returns width)
+        else {
+            textPos.Y += FONT_HEIGHT;
+            textPos.X = 0;
+        }
+    }
     textPos.Y += FONT_HEIGHT;
+    textPos.X = 0;
 }
 
 void DisplayTests::renderDevStats() {
-    DisplayDriver::renderRect(Vector2(0, 0), 5, 5, Red);
+    DisplayDriver::renderRect(Vector2(0, 0), Vector2(5, 5), Red);
     DisplayDriver::fillBuffer(Black);
     drawTextNewLine(((std::string) "Baud Rate: ").append(std::to_string((float)DisplayDriver::actualBaudRate / 1000000)).append(" MHz"));
     drawTextNewLine(((std::string) "Buffer Time: ").append(std::to_string((double)DisplayDriver::fillAndRenderBufferTime / 1000)).append(" ms"));
@@ -251,37 +259,75 @@ void DisplayTests::renderDevStats() {
     }
 }
 
+// currently, when the camera rotates, it acts as though the object is rotating, not the camera
+// ideally, it'd act as I expect it to, not in a seemingly random way
+// adding to this is the fact that the cube rotates around x=0, not the center of the camera
+
+Vector3 tempSize = Vector3(0, 0, 0);
+
+void calculateVertices(std::vector<Cube> *cubes, std::vector<Vector3> *vertices) {
+    for (Cube const& cube: *cubes) {
+        vertices->push_back(cube.Position);
+        tempSize.X = cube.Size.X;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.Y = cube.Size.Y;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.Z = cube.Size.Z;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.Y = 0;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.X = 0;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.Y = cube.Size.Y;
+        vertices->push_back(cube.Position + tempSize);
+        tempSize.Z = 0;
+        vertices->push_back(cube.Position + tempSize);
+
+        tempSize.Y = 0;
+    }
+}
+
 void DisplayTests::test3D() {
     Camera camera = Camera();
-    camera.Position.Z = 3; // with 0 rotation, we face the negative z direction, meaning positive X is left, and Y is still up
-    camera.Position.X = 0.5;
-    camera.Position.Y = 0.5;
+    camera.Position.Z = 4; // with 0 rotation, we face the negative z direction, meaning positive X is left, and Y is still up
+    camera.focalLength = 3; // distance between camera and what camera is focussed on
+    camera.updateSensorSize();
+    camera.updatePosition();
 
-    //camera.Rotation.X = 15;
-    camera.focalLength = 2; // block is 4 units in front of camera
-    camera.calculateSensorSize();
-    camera.calculatePositionAndRotationMatrices();
-
-    std::vector<Vector3> vertices = {
-        Vector3(1, 1, 1),
-        Vector3(1, 1, 0),
-        Vector3(0, 1, 1),
-        Vector3(0, 1, 0),
-
-        Vector3(1, 0, 1),
-        Vector3(1, 0, 0),
-        Vector3(0, 0, 1),
-        Vector3(0, 0, 0)
+    std::vector<Vector3> vertices = {};
+    std::vector<Cube> world = {
+        Cube(Vector3(-1, -1, -1), Vector3::zero, Vector3(1, 1, 1), Black),
+        Cube(Vector3(0, -1, -1), Vector3::zero, Vector3(1, 1, 1), Black)
     };
+
+    calculateVertices(&world, &vertices);
+    
+    /*for (Vector3 const& pos3D: vertices) {
+        drawTextNewLine(std::to_string(pos3D.X).append("x").append(std::to_string(pos3D.Y)).append("x").append(std::to_string(pos3D.Z)));
+    }*/
+
+    DisplayDriver::renderBuffer(); 
     
     Vector2 myPos = Vector2::zero;
+    Vector2 dotSize = Vector2(4, 4);
 
-    for (Vector3 const& pos3D: vertices) {
-        if (camera.project3DTo2D(pos3D, &myPos)) {
-            DisplayDriver::drawRect(myPos - 2, 4, 4, Red);
-            drawTextNewLine(((std::string)"Coord: ").append(std::to_string((int)round(myPos.X))).append("x").append(std::to_string((int)round(myPos.Y))));
+    while (true) {
+        for (double rot = 0; rot <= 180; rot++) {
+            DisplayDriver::fillBuffer(White);
+            camera.Rotation.Y = rot;
+            camera.updateRotation();
+
+            for (Vector3 const& pos3D: vertices) {
+                if (camera.project3DTo2D(pos3D, &myPos)) {
+                    if (myPos.X < (DISPLAY_WIDTH-2) && myPos.X > 1 && myPos.Y < (DISPLAY_HEIGHT-2) && myPos.Y > 1)
+                        DisplayDriver::drawRect(myPos - 2, dotSize, Black);
+                    //drawTextNewLine(((std::string)"Coord: ").append(std::to_string((int)round(myPos.X))).append("x").append(std::to_string((int)round(myPos.Y))));
+                }
+                //drawTextNewLine((camera.displayMatrix * camera.rotationMatrix1 * camera.objectPositionMatrix).toString());
+            }
+            textPos.Y = 0;
+
+            DisplayDriver::renderBuffer();
         }
     }
-
-    DisplayDriver::renderBuffer();
 }

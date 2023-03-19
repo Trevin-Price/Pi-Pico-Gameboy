@@ -27,10 +27,10 @@ void MainMenu::renderButtons() {
     for (std::string const& buttonText : Buttons) {
         int offset = index - ScrollAmount + 1; // -1 because we want the selected element to be in the middle, so if we're at the top of the list, there should be no elements above the middle
         if (offset == 0 || offset == 2) { // either 1 above, 1 below, or the current selected item
-            DisplayDriver::drawOutlinedRect(Vector2(BUTTON_X, BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)), BUTTON_WIDTH, BUTTON_HEIGHT, White, 5, Black);
+            DisplayDriver::drawOutlinedRect(Vector2(BUTTON_X, BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)), Vector2(BUTTON_WIDTH, BUTTON_HEIGHT), White, 5, Black);
             DisplayDriver::drawCenteredText(Vector2(BUTTON_X + BUTTON_WIDTH/2, (BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)) + BUTTON_HEIGHT/2), buttonText, Black);
         } else if (offset == 1) {
-            DisplayDriver::drawOutlinedRect(Vector2(BUTTON_X, BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)), BUTTON_WIDTH, BUTTON_HEIGHT, White, 5, Blue); 
+            DisplayDriver::drawOutlinedRect(Vector2(BUTTON_X, BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)), Vector2(BUTTON_WIDTH, BUTTON_HEIGHT), White, 5, Blue); 
             // the middle button is the highlighted one
             DisplayDriver::ALTdrawCenteredText(Vector2(BUTTON_X + BUTTON_WIDTH/2, (BUTTON_Y + offset*(BUTTON_HEIGHT+BUTTON_Y_INNER_PADDING)) + BUTTON_HEIGHT/2), buttonText, Blue);
         }

@@ -11,6 +11,7 @@
 
 int SnakeGame::currentDirection;
 Vector2 SnakeGame::foodPosition;
+Vector2 snakeSize = Vector2(SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE);
 std::vector<Vector2> SnakeGame::snakePositions; // starting position
 
 void SnakeGame::startGame() {
@@ -84,7 +85,7 @@ void SnakeGame::startGame() {
 
         int newTextLength = static_cast<int>(text.size()); // storing and comparing the FPS text length so we don't draw a rect to cover up old text when it isn't necessary
         if (newTextLength < oldTextLength) {
-            DisplayDriver::renderRect(Vector2::zero, FONT_WIDTH*oldTextLength, FONT_HEIGHT, BACKGROUND_COLOR); // covers up the previous text
+            DisplayDriver::renderRect(Vector2::zero, Vector2(FONT_WIDTH*oldTextLength, FONT_HEIGHT), BACKGROUND_COLOR); // covers up the previous text
             DisplayDriver::renderText(Vector2::zero, text, White, BACKGROUND_COLOR); // render fps counter
         } else
             DisplayDriver::renderText(Vector2::zero, text, White, BACKGROUND_COLOR); // render fps counter
@@ -106,7 +107,7 @@ void SnakeGame::endGame() {
 
 void SnakeGame::deleteSnakeTailTip() {
     Vector2 positionToBeErased = snakePositions.front() * SNAKE_SEGMENT_SIZE;
-    DisplayDriver::renderRect(positionToBeErased, SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, BACKGROUND_COLOR);
+    DisplayDriver::renderRect(positionToBeErased, snakeSize, BACKGROUND_COLOR);
 
     snakePositions.erase(snakePositions.begin());
 }
@@ -131,15 +132,15 @@ void SnakeGame::addFood() {
     while (isSnakeOnSquare(foodPosition))
         foodPosition = Vector2(rand() % GRID_WIDTH, rand() % GRID_HEIGHT); // keep regenerating until there is a free square
 
-    DisplayDriver::renderRect(Vector2(foodPosition.X * SNAKE_SEGMENT_SIZE, foodPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, FOOD_COLOR);
+    DisplayDriver::renderRect(Vector2(foodPosition.X * SNAKE_SEGMENT_SIZE, foodPosition.Y * SNAKE_SEGMENT_SIZE), snakeSize, FOOD_COLOR);
 }
 
 void SnakeGame::renderWholeSnake() {
     for (Vector2 const& segmentPosition: snakePositions) {
-        DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
+        DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), snakeSize, SNAKE_COLOR);
     }
 }
 
 void SnakeGame::renderNewSnakeSegment(Vector2 segmentPosition) {
-    DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), SNAKE_SEGMENT_SIZE, SNAKE_SEGMENT_SIZE, SNAKE_COLOR);
+    DisplayDriver::renderRect(Vector2(segmentPosition.X * SNAKE_SEGMENT_SIZE, segmentPosition.Y * SNAKE_SEGMENT_SIZE), snakeSize, SNAKE_COLOR);
 }

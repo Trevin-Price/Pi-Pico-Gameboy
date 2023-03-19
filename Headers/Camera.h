@@ -20,8 +20,10 @@ public:
 
     Matrix overallMatrix = Matrix(4, 4);
 
-    void calculateSensorSize();
-    void calculatePositionAndRotationMatrices();
+    void updateSensorSize();
+    void updatePositionAndRotation();
+    void updatePosition();
+    void updateRotation();
     bool project3DTo2D(Vector3 worldPoint, Vector2 *screenPointPtr);
 private:
     Matrix objectPositionMatrix = Matrix(1, 4);
@@ -29,8 +31,12 @@ private:
     Matrix displayMatrix = Matrix(4, 4);
     Matrix depthMatrix = Matrix(4, 4);
 
+    Matrix rotationWithDisplayMatrix = Matrix(4, 4);
+
     Matrix positionMatrix = Matrix(4, 4);
-    Matrix rotationMatrix1 = Matrix(4, 4);
-    Matrix rotationMatrix2 = Matrix(4, 4);
-    Matrix rotationMatrix3 = Matrix(4, 4);
+    Matrix rotationMatrix = Matrix(4, 4);
+
+    Matrix subRotationMatrix1 = Matrix(4, 4);
+    Matrix subRotationMatrix2 = Matrix(4, 4);
+    Matrix subRotationMatrix3 = Matrix(4, 4);
 };

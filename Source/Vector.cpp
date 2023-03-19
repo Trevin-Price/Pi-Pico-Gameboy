@@ -12,87 +12,87 @@ Vector2::Vector2() {
 const Vector2 Vector2::zero = Vector2(0, 0);
 
 bool Vector2::operator ==(const Vector2& v1) const {
-    return (this->X == v1.X && this->Y == v1.Y);
+    return (X == v1.X && Y == v1.Y);
 }
 
 void Vector2::operator =(const Vector2& v1) {
-    this->X = v1.X;
-    this->Y = v1.Y;
+    X = v1.X;
+    Y = v1.Y;
 }
 Vector2 Vector2::operator +(const Vector2& v1) const {
-    return Vector2(this->X + v1.X, this->Y + v1.Y);
+    return Vector2(X + v1.X, Y + v1.Y);
 }
 Vector2 Vector2::operator -(const Vector2& v1) const {
-    return Vector2(this->X - v1.X, this->Y - v1.Y);
+    return Vector2(X - v1.X, Y - v1.Y);
 }
 Vector2 Vector2::operator *(const Vector2& v1) const {
-    return Vector2(this->X * v1.X, this->Y * v1.Y);
+    return Vector2(X * v1.X, Y * v1.Y);
 }
 Vector2 Vector2::operator /(const Vector2& v1) const {
-    return Vector2(this->X / v1.X, this->Y / v1.Y);
+    return Vector2(X / v1.X, Y / v1.Y);
 }
 Vector2& Vector2::operator +=(const Vector2& v1) {
-    this->X += v1.X;
-    this->Y += v1.Y;
+    X += v1.X;
+    Y += v1.Y;
 
     return *this;
 }
 Vector2& Vector2::operator -=(const Vector2& v1) {
-    this->X -= v1.X;
-    this->Y -= v1.Y;
+    X -= v1.X;
+    Y -= v1.Y;
 
     return *this;
 }
 Vector2& Vector2::operator *=(const Vector2& v1) {
-    this->X *= v1.X;
-    this->Y *= v1.Y;
+    X *= v1.X;
+    Y *= v1.Y;
 
     return *this;
 }
 Vector2& Vector2::operator /=(const Vector2& v1) {
-    this->X /= v1.X;
-    this->Y /= v1.Y;
+    X /= v1.X;
+    Y /= v1.Y;
 
     return *this;
 }
 
 void Vector2::operator =(const double& v1) {
-    this->X = v1;
-    this->Y = v1;
+    X = v1;
+    Y = v1;
 }
 Vector2 Vector2::operator +(const double& v1) const {
-    return Vector2(this->X + v1, this->Y + v1);
+    return Vector2(X + v1, Y + v1);
 }
 Vector2 Vector2::operator -(const double& v1) const {
-    return Vector2(this->X - v1, this->Y - v1);
+    return Vector2(X - v1, Y - v1);
 }
 Vector2 Vector2::operator *(const double& v1) const {
-    return Vector2(this->X * v1, this->Y * v1);
+    return Vector2(X * v1, Y * v1);
 }
 Vector2 Vector2::operator /(const double& v1) const {
-    return Vector2(this->X / v1, this->Y / v1);
+    return Vector2(X / v1, Y / v1);
 }
 Vector2& Vector2::operator +=(const double& v1) {
-    this->X += v1;
-    this->Y += v1;
+    X += v1;
+    Y += v1;
 
     return *this;
 }
 Vector2& Vector2::operator -=(const double& v1) {
-    this->X -= v1;
-    this->Y -= v1;
+    X -= v1;
+    Y -= v1;
 
     return *this;
 }
 Vector2& Vector2::operator *=(const double& v1) {
-    this->X *= v1;
-    this->Y *= v1;
+    X *= v1;
+    Y *= v1;
 
     return *this;
 }
 Vector2& Vector2::operator /=(const double& v1) {
-    this->X /= v1;
-    this->Y /= v1;
+    X /= v1;
+    Y /= v1;
 
     return *this;
 }
@@ -113,97 +113,97 @@ Vector3::Vector3() {
 const Vector3 Vector3::zero = Vector3(0, 0, 0);
 
 bool Vector3::operator ==(const Vector3& v1) const {
-    return (this->X == v1.X && this->Y == v1.Y && this->Z == v1.Z);
+    return (X == v1.X && Y == v1.Y && Z == v1.Z);
 }
 
 void Vector3::operator =(const Vector3& v1) {
-    this->X = v1.X;
-    this->Y = v1.Y;
-    this->Z = v1.Z;
+    X = v1.X;
+    Y = v1.Y;
+    Z = v1.Z;
 }
 Vector3 Vector3::operator +(const Vector3& v1) const {
-    return Vector3(this->X + v1.X, this->Y + v1.Y, this->Z + v1.Z);
+    return Vector3(X + v1.X, Y + v1.Y, Z + v1.Z);
 }
 Vector3 Vector3::operator -(const Vector3& v1) const {
-    return Vector3(this->X - v1.X, this->Y - v1.Y, this->Z - v1.Z);
+    return Vector3(X - v1.X, Y - v1.Y, Z - v1.Z);
 }
 Vector3 Vector3::operator *(const Vector3& v1) const {
-    return Vector3(this->X * v1.X, this->Y * v1.Y, this->Z * v1.Z);
+    return Vector3(X * v1.X, Y * v1.Y, Z * v1.Z);
 }
 Vector3 Vector3::operator /(const Vector3& v1) const {
-    return Vector3(this->X / v1.X, this->Y / v1.Y, this->Z / v1.Z);
+    return Vector3(X / v1.X, Y / v1.Y, Z / v1.Z);
 }
 Vector3& Vector3::operator +=(const Vector3& v1) {
-    this->X += v1.X;
-    this->Y += v1.Y;
-    this->Z += v1.Z;
+    X += v1.X;
+    Y += v1.Y;
+    Z += v1.Z;
 
     return *this;
 }
 Vector3& Vector3::operator -=(const Vector3& v1) {
-    this->X -= v1.X;
-    this->Y -= v1.Y;
-    this->Z -= v1.Z;
+    X -= v1.X;
+    Y -= v1.Y;
+    Z -= v1.Z;
 
     return *this;
 }
 Vector3& Vector3::operator *=(const Vector3& v1) {
-    this->X *= v1.X;
-    this->Y *= v1.Y;
-    this->Z *= v1.Z;
+    X *= v1.X;
+    Y *= v1.Y;
+    Z *= v1.Z;
 
     return *this;
 }
 Vector3& Vector3::operator /=(const Vector3& v1) {
-    this->X /= v1.X;
-    this->Y /= v1.Y;
-    this->Z /= v1.Z;
+    X /= v1.X;
+    Y /= v1.Y;
+    Z /= v1.Z;
 
     return *this;
 }
 
 void Vector3::operator =(const double& v1) {
-    this->X = v1;
-    this->Y = v1;
-    this->Z = v1;
+    X = v1;
+    Y = v1;
+    Z = v1;
 }
 Vector3 Vector3::operator +(const double& v1) const {
-    return Vector3(this->X + v1, this->Y + v1, this->Z + v1);
+    return Vector3(X + v1, Y + v1, Z + v1);
 }
 Vector3 Vector3::operator -(const double& v1) const {
-    return Vector3(this->X - v1, this->Y - v1, this->Z - v1);
+    return Vector3(X - v1, Y - v1, Z - v1);
 }
 Vector3 Vector3::operator *(const double& v1) const {
-    return Vector3(this->X * v1, this->Y * v1, this->Z * v1);
+    return Vector3(X * v1, Y * v1, Z * v1);
 }
 Vector3 Vector3::operator /(const double& v1) const {
-    return Vector3(this->X / v1, this->Y / v1, this->Z / v1);
+    return Vector3(X / v1, Y / v1, Z / v1);
 }
 Vector3& Vector3::operator +=(const double& v1) {
-    this->X += v1;
-    this->Y += v1;
-    this->Z += v1;
+    X += v1;
+    Y += v1;
+    Z += v1;
 
     return *this;
 }
 Vector3& Vector3::operator -=(const double& v1) {
-    this->X -= v1;
-    this->Y -= v1;
-    this->Z -= v1;
+    X -= v1;
+    Y -= v1;
+    Z -= v1;
 
     return *this;
 }
 Vector3& Vector3::operator *=(const double& v1) {
-    this->X *= v1;
-    this->Y *= v1;
-    this->Z *= v1;
+    X *= v1;
+    Y *= v1;
+    Z *= v1;
 
     return *this;
 }
 Vector3& Vector3::operator /=(const double& v1) {
-    this->X /= v1;
-    this->Y /= v1;
-    this->Z /= v1;
+    X /= v1;
+    Y /= v1;
+    Z /= v1;
 
     return *this;
 }
