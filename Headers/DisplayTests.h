@@ -3,6 +3,7 @@
 #include "UserInputHandler.h"
 #include "DisplayDriver.h"
 #include "Cube.h"
+#include <map>
 
 class DisplayTests {
     public:

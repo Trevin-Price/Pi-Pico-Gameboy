@@ -110,16 +110,9 @@ bool Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
     screenPosMatrix = screenPosMatrix * depthMatrix; // account for depth (add perspective)
     
     if (screenPosMatrix[0][2] > 0) { // make sure it's in front of the camera
-        double posX = (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
-        if (posX >= 0 && posX < DISPLAY_WIDTH) {
-            double posY = (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
-            if (posY >= 0 && posY < DISPLAY_HEIGHT) {
-                pos->X = posX;
-                pos->Y = posY;
-
-                return true;
-            }
-        }
+        pos->X = (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
+        pos->Y = (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
+        return true;
 
         // the comments below are old, but I'm keeping them as a record of some of the issues I ran into while working on this project
 

@@ -208,12 +208,122 @@ void DisplayDriver::renderBuffer() {
     writeData(buffer, BUFFER_SIZE);
 }
 
-void DisplayDriver::drawPixel(const Vector2 point, uint16_t color) {
+void DisplayDriver::drawPixel(Vector2 point, uint16_t color) {
     buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)] = color;
 }
 
+void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t color) { // negative length for negative direction
+    if (length < 0) {
+        if (point.X + length < 0)
+            length = -point.X;
+        std::fill(buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X+length), buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X), color);
+    } else {
+        if (point.X + length >= DISPLAY_WIDTH)
+            length = DISPLAY_WIDTH - point.X - 1;
+        std::fill(buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X), buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X+length), color);
+    }
+}
 
-void DisplayDriver::drawRect(Vector2 point, const Vector2 size, uint16_t backgroundColor) {
+void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, uint16_t color) {
+    if (length < 0) {
+        length -= 1;
+        if (point.Y + length < 0) // limit the line length to be within display limits
+            length = -point.Y;
+
+        uint16_t *base = &buffer[(uint)((point.Y+length+1)*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)  
+        for (uint16_t h = 0; h < (-length); h++) { // iterate through the size.Y
+            *(base+DISPLAY_WIDTH*h) = color;
+        }
+    } else {
+        length += 1;
+        if (point.Y + length >= DISPLAY_HEIGHT) // limit the line length to be within display limits
+            length = DISPLAY_HEIGHT - point.Y - 1;
+        
+        uint16_t *base = &buffer[(uint)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)  
+        for (int h = 0; h < length; h++) { // iterate through the size.Y
+            *(base+DISPLAY_WIDTH*h) = color;
+        }
+    }
+}
+
+void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color) {
+    if (start.X == end.X) {
+        // round values to be nearest pixel
+        start = Vector2(round(start.X), round(start.Y));
+        end = Vector2(round(end.X), round(end.Y));
+
+        for (int16_t x = -floor((double)thickness/2); x < ceil((double)thickness/2); x++) {
+            drawVerticalLine(start + Vector2(x, 0), end.Y-start.Y, color);
+        }
+    } else {
+        double slope = (start.Y - end.Y)/(start.X - end.X);
+        double b = start.Y - start.X * slope;
+        
+        // start X and Y correction (reducing the point to be within the bounds of the display)
+        if (start.Y < 0) {
+            start.Y = 0;
+            start.X = -b/slope;
+        } else if (start.Y >= DISPLAY_HEIGHT) {
+            start.Y = DISPLAY_HEIGHT-1;
+            start.X = (start.Y - b)/slope;
+        }
+        if (start.X < 0) {
+            start.X = 0;
+            start.Y = b;
+        } else if (start.X >= DISPLAY_WIDTH) {
+            start.X = DISPLAY_WIDTH-1;
+            start.Y = start.X*slope + b;
+        }
+
+        // end X and Y correction (reducing the point to be within the bounds of the display)
+        if (end.Y < 0) {
+            end.Y = 0;
+            end.X = -b/slope;
+        } else if (end.Y >= DISPLAY_HEIGHT) {
+            end.Y = DISPLAY_HEIGHT-1;
+            end.X = (end.Y - b)/slope;
+        }
+        if (end.X < 0) {
+            end.X = 0;
+            end.Y = b;
+        } else if (end.X >= DISPLAY_WIDTH) {
+            end.X = DISPLAY_WIDTH-1;
+            end.Y = end.X*slope + b;
+        }
+
+        start = Vector2(round(start.X), round(start.Y));
+        end = Vector2(round(end.X), round(end.Y));
+
+        uint16_t oldY = 0;
+        bool oldYDefined = false;
+        if (start.X < end.X) { //(192, 155), (213, 179)
+            for (uint16_t x = start.X; x <= end.X; x++) { // iterate through each x coordinate
+                uint16_t y = x * slope + b; // calculate the y coordinate
+                if (!oldYDefined) {
+                    oldY = y;
+                    oldYDefined = true; // used to determine if this is the first cycle or not
+                } else {
+                    drawVerticalLine(Vector2(x, oldY), y-oldY, color); // determine height by the difference of the previous coordinate's height and the new height
+                    oldY = y;
+                }
+            }
+        } else {
+            for (uint x = end.X; x <= start.X; x++) {
+                uint16_t y = x * slope + b;
+                if (!oldYDefined) {
+                    oldY = y;
+                    oldYDefined = true;
+                } else {
+                    drawVerticalLine(Vector2(x, oldY), y-oldY, color);
+                    oldY = y;
+                }
+            }
+        }
+    }
+}
+
+
+void DisplayDriver::drawRect(Vector2 point, Vector2 size, uint16_t backgroundColor) {
     point = Vector2(round(point.X), round(point.Y));
     uint16_t *base = &buffer[(int)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
 
@@ -229,7 +339,7 @@ void DisplayDriver::drawRect(Vector2 point, const Vector2 size, uint16_t backgro
 	}
 }
 
-void DisplayDriver::drawOutlinedRect(const Vector2 point, const Vector2 size, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
+void DisplayDriver::drawOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor) {
     uint16_t *base = &buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
 
 	for (int w = 0; w < size.X; w++) { // iterate through the size.X
@@ -249,9 +359,8 @@ void DisplayDriver::drawOutlinedRect(const Vector2 point, const Vector2 size, ui
 	}
 }
 
-
-int DisplayDriver::drawChar(const Vector2 point, char c, uint16_t Color) { // font size is currently forced
-    const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
+int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
+    const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<const uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
     uint16_t* base = &buffer[(int) (point.X + point.Y*DISPLAY_WIDTH)];
@@ -275,13 +384,13 @@ void DisplayDriver::drawCenteredText(Vector2 point, std::string text, uint16_t t
     uint width = static_cast<uint>(text.size()) * FONT_WIDTH; // font is 8 px wide
     point -= Vector2(width/2, FONT_HEIGHT/2);
 
-    for (char const &character : text) { // loop through all characters
+    for (char &character : text) { // loop through all characters
         point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
     }
 }
 
 void DisplayDriver::drawText(Vector2 point, std::string text, uint16_t textColor) { // x, y is the top left corner, renders left to right
-    for (char const &character : text) { // loop through all characters
+    for (char &character : text) { // loop through all characters
         point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
     }
 }
@@ -289,7 +398,7 @@ void DisplayDriver::drawText(Vector2 point, std::string text, uint16_t textColor
 
 
 // ALT text functions are a hacky fix to make text bigger.  A better fix would be a proper scaling font system, but that sounds annoying to implement, and I'd likely end up rarely using it
-int DisplayDriver::ALTdrawChar(const Vector2 point, char c, uint16_t Color) { // font size is currently forced
+int DisplayDriver::ALTdrawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
     const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
@@ -313,19 +422,19 @@ int DisplayDriver::ALTdrawChar(const Vector2 point, char c, uint16_t Color) { //
     return FONT_WIDTH*2; // size.X of each character
 }
 
-void DisplayDriver::ALTdrawCenteredText(const Vector2 point, std::string text, uint16_t textColor) { // alternate is a hacky way to render 2x bigger text
+void DisplayDriver::ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor) { // alternate is a hacky way to render 2x bigger text
     uint width = static_cast<uint>(text.size()) * FONT_WIDTH * 2; // font is 2x wider than normal
     int startX = point.X - width/2; // subtract half the size.X to reverse the offset
     int startY = point.Y - FONT_HEIGHT; // this font is 2x bigger than normal, and so it cancells out the divide by 2
 
-    for (char const &character : text) { // loop through all characters
+    for (char &character : text) { // loop through all characters
         startX += ALTdrawChar(Vector2(startX, startY), character, textColor); // draw individual character (returns size.X, which is useless because text only has 2 possible size.Xes right now)
     }
 }
 
 
 
-void DisplayDriver::renderRect(const Vector2 point, Vector2 size, uint16_t rectColor) { // custom optimized render function
+void DisplayDriver::renderRect(Vector2 point, Vector2 size, uint16_t rectColor) { // custom optimized render function
     if (point.X + size.X > DISPLAY_WIDTH)
         size.X = DISPLAY_WIDTH-point.X;
     if (point.Y + size.Y > DISPLAY_HEIGHT)
@@ -354,7 +463,7 @@ void DisplayDriver::renderRect(const Vector2 point, Vector2 size, uint16_t rectC
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderOutlinedRect(const Vector2 point, const Vector2 size, uint16_t backgroundColor, int borderThickness, uint16_t borderColor) {
+void DisplayDriver::renderOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor) {
     int newWidth = size.X;
     int newHeight = size.Y;
     if (point.X + size.X > DISPLAY_WIDTH)
@@ -392,7 +501,7 @@ void DisplayDriver::renderOutlinedRect(const Vector2 point, const Vector2 size, 
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderText(const Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor) { // x, y is the top left corner, renders left to right
+void DisplayDriver::renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor) { // x, y is the top left corner, renders left to right
     uint width = static_cast<int>(text.size()) * FONT_WIDTH;
     uint height = FONT_HEIGHT;
 
@@ -415,7 +524,7 @@ void DisplayDriver::renderText(const Vector2 point, std::string text, uint16_t t
 
     int xPos = 0;
 
-    for (char const &character : text) { // loop through all characters
+    for (char &character : text) { // loop through all characters
         const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(character - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
         // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
         uint16_t* base = &newBuffer[xPos];

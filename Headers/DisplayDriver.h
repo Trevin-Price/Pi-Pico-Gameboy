@@ -46,22 +46,28 @@ class DisplayDriver {
 
         static void initDisplay();
         
-        static void drawRect(const Vector2 point, const Vector2 size, uint16_t color);
-        static void renderRect(const Vector2 point, const Vector2 size, uint16_t color);
-        static void drawOutlinedRect(const Vector2 point, const Vector2 size, uint16_t color, int borderThickness, uint16_t borderColor);
-        static void renderOutlinedRect(const Vector2 point, const Vector2 size, uint16_t color, int borderThickness, uint16_t borderColor);
-        static void drawPixel(const Vector2 point, uint16_t color);
+        static void drawRect(Vector2 point, Vector2 size, uint16_t color);
+        static void renderRect(Vector2 point, Vector2 size, uint16_t color);
+        static void drawOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor);
+        static void renderOutlinedRect(Vector2 point, Vector2 size, uint16_t color, uint16_t borderThickness, uint16_t borderColor);
+        
+
+        static void drawPixel(Vector2 point, uint16_t color);
+        
+        static void drawVerticalLine(Vector2 point, int16_t length, uint16_t color);
+        static void drawHorizontalLine(Vector2 point, int16_t length, uint16_t color);
+        static void drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color);
 
         static void renderBuffer();
         static void fillBuffer(uint16_t color);
 
-        static void drawCenteredText(const Vector2 point, std::string text, uint16_t textColor);
-        static int drawChar(const Vector2 point, char c, uint16_t Color);
+        static void drawCenteredText(Vector2 point, std::string text, uint16_t textColor);
+        static int drawChar(Vector2 point, char c, uint16_t Color);
         static void drawText(Vector2 point, std::string text, uint16_t textColor);
-        static void renderText(const Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor);
+        static void renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor);
 
-        static void ALTdrawCenteredText(const Vector2 point, std::string text, uint16_t textColor);
-        static int ALTdrawChar(const Vector2 point, char c, uint16_t Color);
+        static void ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor);
+        static int ALTdrawChar(Vector2 point, char c, uint16_t Color);
         
     private:
         static void writeData(void *buffer, int numberOfBytes);

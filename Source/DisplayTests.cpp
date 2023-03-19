@@ -265,7 +265,9 @@ void DisplayTests::renderDevStats() {
 
 Vector3 tempSize = Vector3(0, 0, 0);
 
-void calculateVertices(std::vector<Cube> *cubes, std::vector<Vector3> *vertices) {
+void calculateVertices(std::vector<Cube> *cubes, std::vector<Vector3> *vertices, std::vector<std::pair<uint16_t, uint16_t>> *edges) {
+    uint16_t count = 0;
+    
     for (Cube const& cube: *cubes) {
         vertices->push_back(cube.Position);
         tempSize.X = cube.Size.X;
@@ -283,6 +285,25 @@ void calculateVertices(std::vector<Cube> *cubes, std::vector<Vector3> *vertices)
         tempSize.Z = 0;
         vertices->push_back(cube.Position + tempSize);
 
+        edges->push_back(std::make_pair(count, count+1)); // 0->X
+        edges->push_back(std::make_pair(count, count+5)); // 0->Z
+        edges->push_back(std::make_pair(count, count+7)); // 0->Y
+
+        edges->push_back(std::make_pair(count+1, count+2)); // X->XY
+        edges->push_back(std::make_pair(count+1, count+4)); // X->XZ
+
+        edges->push_back(std::make_pair(count+7, count+2)); // Y->XY
+        edges->push_back(std::make_pair(count+7, count+6)); // Y->YZ
+
+        edges->push_back(std::make_pair(count+5, count+6)); // Z->YZ
+        edges->push_back(std::make_pair(count+5, count+4)); // Z->XZ
+
+        edges->push_back(std::make_pair(count+3, count+2)); // XYZ->XY
+        edges->push_back(std::make_pair(count+3, count+6)); // XYZ->YZ
+        edges->push_back(std::make_pair(count+3, count+4)); // XYZ->XZ
+
+        count += 8;
+
         tempSize.Y = 0;
     }
 }
@@ -294,36 +315,54 @@ void DisplayTests::test3D() {
     camera.updateSensorSize();
     camera.updatePosition();
 
-    std::vector<Vector3> vertices = {};
+    std::vector<Vector3> vertices;
+
+    std::map<uint16_t, Vector2> verticesOnScreen;
+    std::vector<std::pair<uint16_t, uint16_t>> edges;
+
     std::vector<Cube> world = {
-        Cube(Vector3(-1, -1, -1), Vector3::zero, Vector3(1, 1, 1), Black),
-        Cube(Vector3(0, -1, -1), Vector3::zero, Vector3(1, 1, 1), Black)
+        Cube(Vector3(-1, -1, -1), Vector3::zero, Vector3(2, 2, 2), Black),
+        //Cube(Vector3(0, -1, -1), Vector3::zero, Vector3(1, 2, 2), Black)
     };
 
-    calculateVertices(&world, &vertices);
-    
-    /*for (Vector3 const& pos3D: vertices) {
-        drawTextNewLine(std::to_string(pos3D.X).append("x").append(std::to_string(pos3D.Y)).append("x").append(std::to_string(pos3D.Z)));
-    }*/
+    calculateVertices(&world, &vertices, &edges);
 
-    DisplayDriver::renderBuffer(); 
-    
     Vector2 myPos = Vector2::zero;
     Vector2 dotSize = Vector2(4, 4);
 
     while (true) {
-        for (double rot = 0; rot <= 180; rot++) {
+        for (double rot = 0; rot <= 360; rot++) {
             DisplayDriver::fillBuffer(White);
             camera.Rotation.Y = rot;
             camera.updateRotation();
+            verticesOnScreen.clear();
 
             for (Vector3 const& pos3D: vertices) {
                 if (camera.project3DTo2D(pos3D, &myPos)) {
-                    if (myPos.X < (DISPLAY_WIDTH-2) && myPos.X > 1 && myPos.Y < (DISPLAY_HEIGHT-2) && myPos.Y > 1)
-                        DisplayDriver::drawRect(myPos - 2, dotSize, Black);
-                    //drawTextNewLine(((std::string)"Coord: ").append(std::to_string((int)round(myPos.X))).append("x").append(std::to_string((int)round(myPos.Y))));
+                    verticesOnScreen[verticesOnScreen.size()] = myPos;
                 }
-                //drawTextNewLine((camera.displayMatrix * camera.rotationMatrix1 * camera.objectPositionMatrix).toString());
+            }
+
+            for (uint16_t i = 0; i < verticesOnScreen.size(); i++) {
+                Vector2 pos = verticesOnScreen[i];
+                //drawTextNewLine(std::to_string((int)pos.X).append("x").append(std::to_string((int)pos.Y)));
+                if (pos.X >= 0 && pos.X < DISPLAY_WIDTH) {
+                    if (pos.Y >= 0 && pos.Y < DISPLAY_HEIGHT) {
+                        if (pos.X < (DISPLAY_WIDTH-2) && pos.X > 1 && pos.Y < (DISPLAY_HEIGHT-2) && pos.Y > 1) {
+                            DisplayDriver::drawRect(pos - 2, dotSize, Black);
+                        }
+                    }
+                }
+            }
+
+            for (std::pair<uint16_t, uint16_t> const& edge: edges) {
+                if (verticesOnScreen.count(edge.first) && verticesOnScreen.count(edge.second)) {
+                    Vector2 start = verticesOnScreen[edge.first];
+                    Vector2 end = verticesOnScreen[edge.second];
+                    //drawTextNewLine(std::to_string((int)verticesOnScreen[edge.first].X).append("x").append(std::to_string((int)verticesOnScreen[edge.first].Y)).append(" : ").append(std::to_string((int)verticesOnScreen[edge.second].X)).append("x").append(std::to_string((int)verticesOnScreen[edge.second].Y)));
+                    if ((start.X >= 0 && start.X < DISPLAY_WIDTH && start.Y >= 0 && start.Y < DISPLAY_HEIGHT) || (end.X >= 0 && end.X < DISPLAY_WIDTH && end.Y >= 0 && end.Y < DISPLAY_HEIGHT))
+                        DisplayDriver::drawLine(start, end, 1, Black);
+                }
             }
             textPos.Y = 0;
 
