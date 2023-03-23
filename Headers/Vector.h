@@ -1,7 +1,10 @@
 #pragma once
 
-#include <stdlib.h>
+#include "pico/stdlib.h"
+#include "string"
+#include "math.h"
 
+class Matrix;
 
 class Vector2 {
 public:
@@ -11,6 +14,7 @@ public:
     static const Vector2 zero;
 
     bool operator ==(const Vector2&) const;
+    bool operator !=(const Vector2&) const;
 
     void operator =(const Vector2&);
     Vector2 operator *(const Vector2&) const;
@@ -32,6 +36,9 @@ public:
     Vector2& operator +=(const double&);
     Vector2& operator -=(const double&);
 
+    std::string toString() const;
+    void round();
+
     double X, Y;
 };
 
@@ -39,11 +46,13 @@ public:
 class Vector3 {
 public:
     Vector3(double x, double y, double z);
+    Vector3(const Matrix);
     Vector3();
 
     static const Vector3 zero;
 
     bool operator ==(const Vector3&) const;
+    bool operator !=(const Vector3&) const;
 
     void operator =(const Vector3&);
     Vector3 operator *(const Vector3&) const;
@@ -64,6 +73,11 @@ public:
     Vector3& operator /=(const double&);
     Vector3& operator +=(const double&);
     Vector3& operator -=(const double&);
+
+    void operator =(const Matrix&);
+
+    std::string toString() const;
+    void round();
 
     double X, Y, Z;
 };

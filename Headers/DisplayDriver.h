@@ -8,6 +8,9 @@
 #include "Font.h"
 #include "Camera.h"
 #include "Colors.h"
+#include "Cube.h"
+#include <deque>
+#include <array>
 
 // display constants
 #define DISPLAY_WIDTH 320
@@ -57,6 +60,7 @@ class DisplayDriver {
         static void drawVerticalLine(Vector2 point, int16_t length, uint16_t color);
         static void drawHorizontalLine(Vector2 point, int16_t length, uint16_t color);
         static void drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color);
+        static void drawFace(std::array<Vector2, 4> corners, uint16_t color);
 
         static void renderBuffer();
         static void fillBuffer(uint16_t color);
@@ -68,6 +72,8 @@ class DisplayDriver {
 
         static void ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor);
         static int ALTdrawChar(Vector2 point, char c, uint16_t Color);
+
+        static void calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std::deque<Vector3> *vertices, std::deque<std::array<uint16_t, 2>> *edges, std::deque<std::array<uint16_t, 4>> *faces);
         
     private:
         static void writeData(void *buffer, int numberOfBytes);

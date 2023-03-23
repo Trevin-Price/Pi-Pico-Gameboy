@@ -11,15 +11,13 @@ Matrix::Matrix(uint8_t width, uint8_t height) {
     }
 }
 
-double Matrix::destructCount = 0;
-
 Matrix::~Matrix() { // previously forgot to add Matrix deconstructor, which was not ideal for memory usage
     for (uint8_t x = 0; x < width; x++)
         delete[] matrixValues[x];
     delete[] matrixValues;
 }
 
-double* Matrix::operator [](uint8_t index) {
+double* Matrix::operator [](uint8_t index) const {
     if (index > width) {
         // add error here
     }
@@ -39,6 +37,14 @@ void Matrix::operator =(const Matrix& m1) {
             for (uint8_t y = 0; y < m1.height; y++)
                 matrixValues[x][y] = m1.matrixValues[x][y];
         }
+    }
+}
+
+void Matrix::operator =(const Vector3& v1) {
+    if (this->width == 1 &&this->height == 3) {
+        this->matrixValues[0][0] = v1.X;
+        this->matrixValues[0][1] = v1.Y;
+        this->matrixValues[0][2] = v1.Z;
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include "pico/stdlib.h"
 #include "string"
+#include "Vector.h"
 
 class Matrix {
     public:
@@ -10,11 +11,10 @@ class Matrix {
 
         std::string toString();
 
-        double* operator [](uint8_t index);
+        double* operator [](uint8_t index) const;
         Matrix operator *(const Matrix& m1);
         void operator =(const Matrix& m1);
-
-        static double destructCount;
+        void operator =(const Vector3& v1);
 
         uint8_t width, height;
     private:

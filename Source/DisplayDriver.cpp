@@ -247,6 +247,9 @@ void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, uint16_t col
 }
 
 void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color) {
+    start = Vector2(round(start.X), round(start.Y));
+    end = Vector2(round(end.X), round(end.Y));
+
     if (start.X == end.X) {
         // round values to be nearest pixel
         start = Vector2(round(start.X), round(start.Y));
@@ -291,9 +294,6 @@ void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uin
             end.Y = end.X*slope + b;
         }
 
-        start = Vector2(round(start.X), round(start.Y));
-        end = Vector2(round(end.X), round(end.Y));
-
         uint16_t oldY = 0;
         bool oldYDefined = false;
         if (start.X < end.X) { //(192, 155), (213, 179)
@@ -319,6 +319,142 @@ void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uin
                 }
             }
         }
+    }
+}
+
+void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) {
+    // in this function, topLeft == (0, Y) topRight = (X, Y), bottomLeft = (0, 0), bottomRight = (X, 0)
+    // the top and bottoms are not based on screen orientation, but rather numeric magnitude
+
+    Vector2 bottomLeft = corners[0],
+            bottomRight = corners[1],
+            topLeft = corners[2],
+            topRight = corners[3]; // initialize to random values to be later sorted
+    
+    if (bottomLeft.X > bottomRight.X) { // sorts left from right
+        std::swap(bottomRight, bottomLeft);
+    }
+    if (topLeft.X > topRight.X) { // sorts left from right
+        std::swap(topRight, topLeft);
+    }
+    if (bottomLeft.Y > topLeft.Y) {
+        std::swap(bottomLeft, topLeft);
+    }
+    if (bottomRight.Y > topRight.Y) {
+        std::swap(bottomRight, topRight);
+    }
+    // above lines are for sorting corners into bottomLeft, bottomRight, topLeft, and topRight
+    // I wrote it at 2 am and didn't have the mental processing power to do it in the most optimized possible way
+    // so I instead wrote it like this
+    // I could come back and micro optimize this later, but I believe there are other optimizations that are worth more of my time than this
+    
+    // round to nearest pixel
+    bottomLeft.round();
+    bottomRight.round();
+    topLeft.round();
+    topRight.round();
+
+    bool isTLeftMax, isBLeftMin; // defines whether the top left/bottom left is max/min, which allows us to infer the opposite
+    int16_t maxY, maxY2, minY, minY2; 
+    // the max coordinates and above top/bottom max/min definitions are for later
+    // they're used to determine how the scanline should be calculated for drawing the face
+    if (topLeft.Y > topRight.Y) {
+        maxY = topLeft.Y;
+        maxY2 = topRight.Y;
+        isTLeftMax = true;
+    } else {
+        maxY = topRight.Y;
+        maxY2 = topLeft.Y;
+        isTLeftMax = false;
+    }
+    if (bottomLeft.Y < bottomRight.Y) {
+        minY = bottomLeft.Y;
+        minY2 = bottomRight.Y;
+        isBLeftMin = true;
+    } else {
+        minY = bottomRight.Y;
+        minY2 = bottomLeft.Y;
+        isBLeftMin = false;
+    }
+
+    // define slopes and offsets to be used later for conversion between x and y coordinates
+    double m0 = (bottomLeft.Y - bottomRight.Y)/(bottomLeft.X - bottomRight.X), // bottom edge
+           m1 = (bottomRight.Y - topRight.Y)/(bottomRight.X - topRight.X), // right edge
+           m2 = (topRight.Y - topLeft.Y)/(topRight.X - topLeft.X), // top edge
+           m3 = (topLeft.Y - bottomLeft.Y)/(topLeft.X - bottomLeft.X), // left edge
+           b0 = (bottomLeft.Y - bottomLeft.X * m0), // bottom edge offset
+           b1 = (bottomRight.Y - bottomRight.X * m1), // right edge offset
+           b2 = (topRight.Y - topRight.X * m2), // top edge offset
+           b3 = (topLeft.Y - topLeft.X * m3); // left edge offset
+    
+    // declares+defines whether these edges are special cases or not (slope = +-inf)
+    // note that this doesn't affect horizontal edges because if they've a slope of 0, they just wont be used (maxY == maxY2)
+    bool s1 = (bottomRight.X == topRight.X),
+         s3 = (topLeft.X == bottomLeft.X);
+
+    int16_t minX, maxX; // declared for later
+
+    // round the min and max to display limits
+    minY = minY < 0 ? 0 : (minY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT-1 : minY);
+    maxY = maxY < 0 ? 0 : (maxY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT-1 : maxY);
+    
+    uint16_t *base = &buffer[(int)(minY*DISPLAY_WIDTH)]; // make base starting at min point
+
+    for (uint16_t y = minY; y <= maxY; y++) {
+        // the below if/else is for calculating minX/maxX, which is used for scanline calculations
+
+        if (y < minY2) {
+            if (isBLeftMin) {
+                if (s3)
+                    minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
+                else
+                    minX = (y-b3)/m3;
+
+                maxX = (y-b0)/m0;
+            } else {
+                if (s1)
+                    maxX = bottomRight.X; // get righ side x coordinate, as it's constant (slope = vertical = inf)
+                else
+                    maxX = (y-b1)/m1;
+
+                minX = (y-b0)/m0;
+            }
+        } else if (y > maxY2) {
+            if (isTLeftMax) {
+                if (s3)
+                    minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
+                else
+                    minX = (y-b3)/m3;
+                
+                maxX = (y-b2)/m2;
+            } else {
+                if (s1)
+                    maxX = bottomRight.X; // get right side x coordinate, as it's constant (slope = vertical = inf)
+                else
+                    maxX = (y-b1)/m1;
+                
+                minX = (y-b2)/m2;
+            }
+        } else {
+            if (s3)
+                minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
+            else
+                minX = (y-b3)/m3;
+            
+            if (s1)
+                maxX = bottomRight.X; // get right side x coordinate, as it's constant (slope = vertical = inf)
+            else
+                maxX = (y-b1)/m1;
+        }
+
+        // round the min and max to display limits
+        minX = minX < 0 ? 0 : (minX >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : minX);
+        maxX = maxX < 0 ? 0 : (maxX >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : maxX);
+
+        // now that we've calculated the scanline, we can render it in
+        for (uint16_t x = minX; x <= maxX; x++)
+            *(base+x) = color;
+        base += DISPLAY_WIDTH; // go down one length (following the iteration)
     }
 }
 
@@ -548,3 +684,88 @@ void DisplayDriver::renderText(Vector2 point, std::string text, uint16_t textCol
     delete [] newBuffer; // deallocate to save memory
     newBuffer = nullptr;
 }
+
+
+const Vector3 stockCubeVertexPositions[8] = {
+    Vector3(-1, -1, -1), // 0, 0, 0
+    Vector3(1, -1, -1), // X, 0, 0
+    Vector3(-1, 1, -1), // 0, Y, 0
+    Vector3(-1, -1, 1), // 0, 0, Z
+    Vector3(1, 1, -1), // X, Y, 0
+    Vector3(1, -1, 1), // X, 0, Z
+    Vector3(-1, 1, 1), // 0, Y, Z
+    Vector3(1, 1, 1) // X, Y, Z
+}; // oriented around center
+
+Vector3 halfSize = Vector3(0, 0, 0);
+Matrix Rx = Matrix(3, 3);
+Matrix Ry = Matrix(3, 3);
+Matrix Rz = Matrix(3, 3);
+void DisplayDriver::calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std::deque<Vector3> *vertices, std::deque<std::array<uint16_t, 2>> *edges, std::deque<std::array<uint16_t, 4>> *faces) {
+    uint16_t count = 0;
+    Rx[0][0] = 1;
+    Ry[1][1] = 1;
+    Rz[2][2] = 1;
+    
+    for (Cube const& cube: *cubes) {
+        Vector3 cubeRotationRad = cube.Rotation * deg2rad;
+        Rx[1][1] = cos(cubeRotationRad.X);
+        Rx[2][1] = -sin(cubeRotationRad.X);
+        Rx[1][2] = sin(cubeRotationRad.X);
+        Rx[2][2] = cos(cubeRotationRad.X);
+
+        Ry[0][0] = cos(cubeRotationRad.Y);
+        Ry[2][0] = sin(cubeRotationRad.Y);
+        Ry[0][2] = -sin(cubeRotationRad.Y);
+        Ry[2][2] = cos(cubeRotationRad.Y);
+
+        Rz[0][0] = cos(cubeRotationRad.Z);
+        Rz[1][0] = -sin(cubeRotationRad.Z);
+        Rz[0][1] = sin(cubeRotationRad.Z);
+        Rz[1][1] = cos(cubeRotationRad.Z);
+
+        Matrix cubeRotationMatrix = Rz * Ry * Rx;
+        Matrix vertexPositionMatrix = Matrix(1, 3);
+        halfSize = cube.Size/2;
+
+        for (Vector3 const& pos: stockCubeVertexPositions) {
+            vertexPositionMatrix = pos * halfSize;
+            vertices->emplace_back(Vector3(cubeRotationMatrix * vertexPositionMatrix) + cube.Position);
+        }
+        // in the context of edges, count+x is a way to tell which vertices line up.
+        // the number x represents which push_back is pushing the vertex.
+        // the vertex offset is based on stockCubeVertexPositions's definition
+
+        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 1) }); // 0->X
+        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 2) }); // 0->Z
+        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 3) }); // 0->Y
+
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 4) }); // X->XY
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 5) }); // X->XZ
+
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 4) }); // Y->XY
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 6) }); // Y->YZ
+
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 6) }); // Z->YZ
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 5) }); // Z->XZ
+
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 4) }); // XYZ->XY
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 6) }); // XYZ->YZ
+        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 5) }); // XYZ->XZ
+        
+
+        // in the context of faces, count+x is a way to tell which edges line up.
+        // the number x represents which push_back is pushing the edge.
+        // For example, count+0 is the 0->X edge
+
+        faces->emplace_back(std::array<uint16_t, 4>{ 
+            count, // 0,0 corner
+            static_cast<uint16_t>(count + 1), // X, 0 corner
+            static_cast<uint16_t>(count + 2),  // 0, Y corner
+            static_cast<uint16_t>(count + 4) // X, Y corner
+        }); // XY face
+
+        count += 8;
+    }
+}
+
