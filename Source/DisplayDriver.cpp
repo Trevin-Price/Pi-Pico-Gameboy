@@ -322,77 +322,50 @@ void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uin
     }
 }
 
-void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) {
+void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) { // SPECIFIC order of corners
     // in this function, topLeft == (0, Y) topRight = (X, Y), bottomLeft = (0, 0), bottomRight = (X, 0)
     // the top and bottoms are not based on screen orientation, but rather numeric magnitude
+    /*
+        edges = {
+            0->1, 0->X
+            0->2, 0>Y
+            1->3, X->XY
+            2->3  Y->XY
+        }
+    */
 
-    Vector2 bottomLeft = corners[0],
-            bottomRight = corners[1],
-            topLeft = corners[2],
-            topRight = corners[3]; // initialize to random values to be later sorted
-    
-    if (bottomLeft.X > bottomRight.X) { // sorts left from right
-        std::swap(bottomRight, bottomLeft);
-    }
-    if (topLeft.X > topRight.X) { // sorts left from right
-        std::swap(topRight, topLeft);
-    }
-    if (bottomLeft.Y > topLeft.Y) {
-        std::swap(bottomLeft, topLeft);
-    }
-    if (bottomRight.Y > topRight.Y) {
-        std::swap(bottomRight, topRight);
-    }
-    // above lines are for sorting corners into bottomLeft, bottomRight, topLeft, and topRight
-    // I wrote it at 2 am and didn't have the mental processing power to do it in the most optimized possible way
-    // so I instead wrote it like this
-    // I could come back and micro optimize this later, but I believe there are other optimizations that are worth more of my time than this
-    
-    // round to nearest pixel
-    bottomLeft.round();
-    bottomRight.round();
-    topLeft.round();
-    topRight.round();
-
-    bool isTLeftMax, isBLeftMin; // defines whether the top left/bottom left is max/min, which allows us to infer the opposite
-    int16_t maxY, maxY2, minY, minY2; 
+    int16_t maxY, minY = round(corners[0].Y);
     // the max coordinates and above top/bottom max/min definitions are for later
     // they're used to determine how the scanline should be calculated for drawing the face
-    if (topLeft.Y > topRight.Y) {
-        maxY = topLeft.Y;
-        maxY2 = topRight.Y;
-        isTLeftMax = true;
-    } else {
-        maxY = topRight.Y;
-        maxY2 = topLeft.Y;
-        isTLeftMax = false;
-    }
-    if (bottomLeft.Y < bottomRight.Y) {
-        minY = bottomLeft.Y;
-        minY2 = bottomRight.Y;
-        isBLeftMin = true;
-    } else {
-        minY = bottomRight.Y;
-        minY2 = bottomLeft.Y;
-        isBLeftMin = false;
-    }
 
+    for (Vector2& corner : corners) {
+        corner.round(); // round to nearest pixel
+        double Y = corner.Y;
+        if (Y > maxY)
+            maxY = Y;
+        else if (Y < minY)
+            minY = Y;
+    }
+    
     // define slopes and offsets to be used later for conversion between x and y coordinates
-    double m0 = (bottomLeft.Y - bottomRight.Y)/(bottomLeft.X - bottomRight.X), // bottom edge
-           m1 = (bottomRight.Y - topRight.Y)/(bottomRight.X - topRight.X), // right edge
-           m2 = (topRight.Y - topLeft.Y)/(topRight.X - topLeft.X), // top edge
-           m3 = (topLeft.Y - bottomLeft.Y)/(topLeft.X - bottomLeft.X), // left edge
-           b0 = (bottomLeft.Y - bottomLeft.X * m0), // bottom edge offset
-           b1 = (bottomRight.Y - bottomRight.X * m1), // right edge offset
-           b2 = (topRight.Y - topRight.X * m2), // top edge offset
-           b3 = (topLeft.Y - topLeft.X * m3); // left edge offset
+    // the labels next to the slopes/offsets assume an unrotated camera staring at an unrotated cube
+    double m0 = (corners[0].Y - corners[1].Y)/(corners[0].X - corners[1].X), // bottom edge
+           m1 = (corners[1].Y - corners[3].Y)/(corners[1].X - corners[3].X), // right edge
+           m2 = (corners[3].Y - corners[2].Y)/(corners[3].X - corners[2].X), // top edge
+           m3 = (corners[2].Y - corners[0].Y)/(corners[2].X - corners[0].X), // left edge
+           b0 = (corners[0].Y - corners[0].X * m0), // bottom edge offset
+           b1 = (corners[1].Y - corners[1].X * m1), // right edge offset
+           b2 = (corners[3].Y - corners[3].X * m2), // top edge offset
+           b3 = (corners[2].Y - corners[2].X * m3); // left edge offset
     
     // declares+defines whether these edges are special cases or not (slope = +-inf)
     // note that this doesn't affect horizontal edges because if they've a slope of 0, they just wont be used (maxY == maxY2)
-    bool s1 = (bottomRight.X == topRight.X),
-         s3 = (topLeft.X == bottomLeft.X);
+    bool s0 = (corners[0].X == corners[1].X),
+         s1 = (corners[1].X == corners[3].X),
+         s2 = (corners[3].X == corners[2].X),
+         s3 = (corners[2].X == corners[0].X);
 
-    int16_t minX, maxX; // declared for later
+    std::deque<int16_t> xIntercepts; 
 
     // round the min and max to display limits
     minY = minY < 0 ? 0 : (minY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT-1 : minY);
@@ -401,60 +374,56 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) {
     uint16_t *base = &buffer[(int)(minY*DISPLAY_WIDTH)]; // make base starting at min point
 
     for (uint16_t y = minY; y <= maxY; y++) {
-        // the below if/else is for calculating minX/maxX, which is used for scanline calculations
+        // the below if/else is for calculating xIntercepts
+        // xIntercepts get the max and min x values on a horizontal line
+        // this is used for scanline calculations
 
-        if (y < minY2) {
-            if (isBLeftMin) {
-                if (s3)
-                    minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
-                else
-                    minX = (y-b3)/m3;
 
-                maxX = (y-b0)/m0;
-            } else {
-                if (s1)
-                    maxX = bottomRight.X; // get righ side x coordinate, as it's constant (slope = vertical = inf)
-                else
-                    maxX = (y-b1)/m1;
-
-                minX = (y-b0)/m0;
-            }
-        } else if (y > maxY2) {
-            if (isTLeftMax) {
-                if (s3)
-                    minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
-                else
-                    minX = (y-b3)/m3;
-                
-                maxX = (y-b2)/m2;
-            } else {
-                if (s1)
-                    maxX = bottomRight.X; // get right side x coordinate, as it's constant (slope = vertical = inf)
-                else
-                    maxX = (y-b1)/m1;
-                
-                minX = (y-b2)/m2;
-            }
-        } else {
-            if (s3)
-                minX = bottomLeft.X; // get left side x coordinate, as it's constant (slope = vertical = inf)
+        // you'll notice that this repeated if statement switches between >= and > often
+        // this is because there can only be one case for if y == corners[1].Y
+        // if there are more than 1 case, then it will find too many xInts, and fail
+        if ((y <= corners[1].Y && y >= corners[0].Y) || (y >= corners[1].Y && y <= corners[0].Y)) {
+            if (s0)
+                xIntercepts.emplace_back(corners[1].X);
             else
-                minX = (y-b3)/m3;
-            
-            if (s1)
-                maxX = bottomRight.X; // get right side x coordinate, as it's constant (slope = vertical = inf)
-            else
-                maxX = (y-b1)/m1;
+                xIntercepts.emplace_back((y-b0)/m0);
         }
 
-        // round the min and max to display limits
-        minX = minX < 0 ? 0 : (minX >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : minX);
-        maxX = maxX < 0 ? 0 : (maxX >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : maxX);
+        if ((y < corners[1].Y && y >= corners[3].Y) || (y > corners[1].Y && y <= corners[3].Y)) {
+            if (s1)
+                xIntercepts.emplace_back(corners[1].X);
+            else
+                xIntercepts.emplace_back((y-b1)/m1);
+        }
 
-        // now that we've calculated the scanline, we can render it in
-        for (uint16_t x = minX; x <= maxX; x++)
-            *(base+x) = color;
+        if ((y <= corners[2].Y && y > corners[3].Y) || (y >= corners[2].Y && y < corners[3].Y)) {
+            if (s2)
+                xIntercepts.emplace_back(corners[2].X);
+            else
+                xIntercepts.emplace_back((y-b2)/m2);
+        }
+
+        if ((y < corners[2].Y && y > corners[0].Y) || (y > corners[2].Y && y < corners[0].Y)) {
+            if (s3)
+                xIntercepts.emplace_back(corners[2].X);
+            else
+                xIntercepts.emplace_back((y-b3)/m3);
+        }
+
+        std::sort(xIntercepts.begin(), xIntercepts.end()); // sort smallest to largest
+
+        if (xIntercepts.size() == 2) { // should be impossible for this to fail, but can't be too certain
+            // round the min and max to display limits
+            for (uint8_t i = 0; i < 2; i++)
+                xIntercepts[i] = xIntercepts[i] < 0 ? 0 : (xIntercepts[i] >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : xIntercepts[i]);
+
+            // now that we've calculated the scanline, we can render it in
+            for (uint16_t x = xIntercepts[0]; x <= xIntercepts[1]; x++)
+                *(base+x) = color;
+        }
+
         base += DISPLAY_WIDTH; // go down one length (following the iteration)
+        xIntercepts.clear();
     }
 }
 

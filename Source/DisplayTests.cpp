@@ -295,7 +295,7 @@ void DisplayTests::test3D() {
         for (double rot = 0; rot <= 360; rot++) { // 30 fps with full display buffer writing, which is good enough for a game
             DisplayDriver::fillBuffer(White);
 
-            world[0].Rotation.Y = rot;
+            world[0].Rotation = rot; // Z rotation is broken and needs to be fixed
             vertices.clear();
             edges.clear();
             faces.clear();

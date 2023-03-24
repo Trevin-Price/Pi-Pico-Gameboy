@@ -38,6 +38,7 @@ public:
 
     std::string toString() const;
     void round();
+    double magnitude() const;
 
     double X, Y;
 };
@@ -78,6 +79,7 @@ public:
 
     std::string toString() const;
     void round();
+    double magnitude() const;
 
     double X, Y, Z;
 };

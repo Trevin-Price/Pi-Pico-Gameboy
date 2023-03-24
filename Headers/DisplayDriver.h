@@ -11,6 +11,7 @@
 #include "Cube.h"
 #include <deque>
 #include <array>
+#include <algorithm> // sorting x ints
 
 // display constants
 #define DISPLAY_WIDTH 320
@@ -60,7 +61,7 @@ class DisplayDriver {
         static void drawVerticalLine(Vector2 point, int16_t length, uint16_t color);
         static void drawHorizontalLine(Vector2 point, int16_t length, uint16_t color);
         static void drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color);
-        static void drawFace(std::array<Vector2, 4> corners, uint16_t color);
+        static void drawFace(std::array<Vector2, 4> corners, uint16_t color); // corners MUST be in a specific order
 
         static void renderBuffer();
         static void fillBuffer(uint16_t color);

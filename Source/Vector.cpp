@@ -112,6 +112,10 @@ void Vector2::round() {
     Y = ::round(Y);
 }
 
+double Vector2::magnitude() const {
+    return sqrt(pow(X, 2) + pow(Y, 2));
+}
+
 
 Vector3::Vector3(double x, double y, double z) {
     X = x;
@@ -253,4 +257,8 @@ void Vector3::round() {
     X = ::round(X);
     Y = ::round(Y);
     Z = ::round(Z);
+}
+
+double Vector3::magnitude() const {
+    return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z,2));
 }
