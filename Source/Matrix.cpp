@@ -10,6 +10,27 @@ Matrix::Matrix(uint8_t width, uint8_t height) {
             matrixValues[x][y] = 0;
     }
 }
+Matrix::Matrix(const Vector3 v1) {
+    width = 1;
+    height = 3;
+    matrixValues = new double*[1];
+    matrixValues[0] = new double[3];
+    
+    matrixValues[0][0] = v1.X;
+    matrixValues[0][1] = v1.Y;
+    matrixValues[0][2] = v1.Z;
+}
+Matrix::Matrix(const Matrix& m1) {
+    width = m1.width;
+    height = m1.height;
+
+    matrixValues = new double*[width];
+    for (uint8_t x = 0; x < width; x++) {
+        matrixValues[x] = new double[height];
+        for (uint8_t y = 0; y < height; y++)
+            matrixValues[x][y] = m1[x][y];
+    }
+}
 
 Matrix::~Matrix() { // previously forgot to add Matrix deconstructor, which was not ideal for memory usage
     for (uint8_t x = 0; x < width; x++)
@@ -48,18 +69,23 @@ void Matrix::operator =(const Vector3& v1) {
     }
 }
 
-Matrix Matrix::operator *(const Matrix& m1) {
-    Matrix productMatrix = Matrix(width < m1.width ? width : m1.width, height < m1.height ? height : m1.height);
+Matrix Matrix::operator *(const Matrix& m1) const {
+    Matrix productMatrix = Matrix(m1.width, height);
     
+    if (m1.height != width) {
+        productMatrix.width = 0;
+        productMatrix.height = 0;
+    }
+
     for (uint8_t y = 0; y < productMatrix.height; y++) {
         for (uint8_t x = 0; x < productMatrix.width; x++) {
             double newVal = 0;
-            for (uint8_t m2x = 0; m2x < width; m2x++) {
-                if (m2x >= m1.height) 
+            for (uint8_t x2 = 0; x2 < width; x2++) {
+                if (x2 >= m1.height) 
                     break;
-                newVal += (matrixValues[m2x][y] * m1.matrixValues[x][m2x]);
+                newVal += (matrixValues[x2][y] * m1[x][x2]);
             }
-            productMatrix.matrixValues[x][y] = newVal;
+            productMatrix[x][y] = newVal;
         }
     }
 
@@ -67,6 +93,10 @@ Matrix Matrix::operator *(const Matrix& m1) {
 }
 
 std::string Matrix::toString() {
+
+    if (width == 0 || height == 0)
+        return "UNDEFINED MATRIX";
+
     std::string myStr = "";
 
     for (uint8_t x = 0; x < width; x++) {

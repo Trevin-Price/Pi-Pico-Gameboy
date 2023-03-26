@@ -103,8 +103,11 @@ Vector2& Vector2::operator /=(const double& v1) {
     return *this;
 }
 
-std::string Vector2::toString() const {
-    return std::to_string(X).append("x").append(std::to_string(Y));
+std::string Vector2::toString(bool rounded) const {
+    if (rounded)
+        return std::to_string((int64_t) ::round(X)).append("x").append(std::to_string((int64_t) ::round(Y)));
+    else
+        return std::to_string(X).append("x").append(std::to_string(Y));
 }
 
 void Vector2::round() {
@@ -249,8 +252,11 @@ void Vector3::operator =(const Matrix& m1) {
     }
 }
 
-std::string Vector3::toString() const {
-    return std::to_string(X).append("x").append(std::to_string(Y)).append("x").append(std::to_string(Z));
+std::string Vector3::toString(bool rounded) const {
+    if (rounded)
+        return std::to_string((int64_t) ::round(X)).append("x").append(std::to_string((int64_t) ::round(Y))).append("x").append(std::to_string((int64_t) ::round(Z)));
+    else
+        return std::to_string(X).append("x").append(std::to_string(Y)).append("x").append(std::to_string(Z));
 }
 
 void Vector3::round() {

@@ -4,7 +4,7 @@ int MainMenu::ScrollAmount = 0;
 #define OPTION_COUNT 6
 
 std::string MainMenu::Buttons[OPTION_COUNT] = { "Snake", "3D Test", "Line Test", "Color Tester", "Optimized Test", "Extras" };
-void (*MainMenu::ButtonFunctions[OPTION_COUNT])(void) = { &DisplayTests::renderDevStats, &DisplayTests::test3D, &DisplayTests::startRectTest, &DisplayTests::startFullScreenTest, &DisplayTests::directRenderTest, &DisplayTests::renderDevStats };
+void (*MainMenu::ButtonFunctions[OPTION_COUNT])(void) = { &SnakeGame::startGame, &DisplayTests::test3D, &DisplayTests::startRectTest, &DisplayTests::startFullScreenTest, &DisplayTests::directRenderTest, &DisplayTests::renderDevStats };
 
 #define BUTTON_X_PADDING 30 // padding on the left and right side of each button
 #define BUTTON_Y_OUTER_PADDING 30 // padding on the top and bottom of the list of buttons

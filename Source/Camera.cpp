@@ -98,7 +98,7 @@ void Camera::updatePositionAndRotation() {
     overallMatrix = rotationWithDisplayMatrix * positionMatrix;
 }
 
-bool Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
+void Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
     objectPositionMatrix[0][0] = point.X;
     objectPositionMatrix[0][1] = point.Y;
     objectPositionMatrix[0][2] = point.Z;
@@ -107,28 +107,23 @@ bool Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
     double depthMultiplier = 1/screenPosMatrix[0][2];
     depthMatrix[0][0] = depthMultiplier;
     depthMatrix[1][1] = depthMultiplier;
-    screenPosMatrix = screenPosMatrix * depthMatrix; // account for depth (add perspective)
+    screenPosMatrix = depthMatrix * screenPosMatrix; // account for depth (add perspective)
     
-    if (screenPosMatrix[0][2] > 0) { // make sure it's in front of the camera
-        pos->X = (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
-        pos->Y = (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
-        return true;
+    pos->X = (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
+    pos->Y = (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
 
-        // the comments below are old, but I'm keeping them as a record of some of the issues I ran into while working on this project
+    // the comments below are old, but I'm keeping them as a record of some of the issues I ran into while working on this project
 
-        // DISPLAY_ - X is a stupid fix
-        // this is an issue to do with the order I multiply matrices, or something
-        // basically, prior to accounting for depth, matrix[0][2] is the negative version of what it should be
-        // because I couldn't figure out why after 4 hours of trying, I slapped on a bandaid fix and called it a day
-        // I could optimize this math, but to show that it's a bandaid fix, I'm leaving it as is
+    // DISPLAY_ - X is a stupid fix
+    // this is an issue to do with the order I multiply matrices, or something
+    // basically, prior to accounting for depth, matrix[0][2] is the negative version of what it should be
+    // because I couldn't figure out why after 4 hours of trying, I slapped on a bandaid fix and called it a day
+    // I could optimize this math, but to show that it's a bandaid fix, I'm leaving it as is
 
-        // there is also another issue related to y coordinate not working correctly, and this is likely related
-        // after fixing the y coordinate issue, I realized the problem was that I was incorrectly rounding the double coordinate values into integers, causing it to give incorrect screen coordinates
-        
-        // after further investigation, I disovered that the problem was that the video I was watching had modified the math they were citing, despite not mentioning this (or me failing to notice their mention of it)
-        // modifying my code to match theirs fixed the issues listed above, as well as others I hadn't documented
-        // I'd like to go back and rewrite my code to match the cited math while achieving the desired result, so that I can fully understand why their code differed from their cited math
-    }
+    // there is also another issue related to y coordinate not working correctly, and this is likely related
+    // after fixing the y coordinate issue, I realized the problem was that I was incorrectly rounding the double coordinate values into integers, causing it to give incorrect screen coordinates
     
-    return false;
+    // after further investigation, I disovered that the problem was that the video I was watching had modified the math they were citing, despite not mentioning this (or me failing to notice their mention of it)
+    // modifying my code to match theirs fixed the issues listed above, as well as others I hadn't documented
+    // I'd like to go back and rewrite my code to match the cited math while achieving the desired result, so that I can fully understand why their code differed from their cited math
 }

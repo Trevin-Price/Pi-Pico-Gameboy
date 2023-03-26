@@ -24,7 +24,7 @@ public:
     void updatePositionAndRotation();
     void updatePosition();
     void updateRotation();
-    bool project3DTo2D(Vector3 worldPoint, Vector2 *screenPointPtr);
+    void project3DTo2D(Vector3 worldPoint, Vector2 *screenPointPtr);
 private:
     Matrix objectPositionMatrix = Matrix(1, 4);
     

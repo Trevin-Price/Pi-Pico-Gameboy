@@ -10,38 +10,47 @@
 
 // One potential optimization is to use the set collumn and row addresses, which lets me push minimal data and write to certain parts of the display, which seems to be faster than my current method of overwriting the entire buffer every time I want to write a new frame.
 
-
 /*
 Credit to: https://github.com/shawnhyam/pico/tree/main/ili9341
 for already having made this, allowing me to not have to read 250 pages of ili9341 datasheets to find out the initiation process for this display.
 */
 
-uint16_t* DisplayDriver::buffer = new uint16_t[DISPLAY_WIDTH * DISPLAY_HEIGHT];
+uint16_t *DisplayDriver::buffer = new uint16_t[DISPLAY_WIDTH * DISPLAY_HEIGHT];
 
-static inline void selectMode(bool value) { // initiates the device to have data written to it
+
+Vector3 halfSize = Vector3(0, 0, 0); // these are used in 3d calculations
+Matrix Rx = Matrix(3, 3);
+Matrix Ry = Matrix(3, 3);
+Matrix Rz = Matrix(3, 3);
+
+static inline void selectMode(bool value)
+{                                      // initiates the device to have data written to it
     asm volatile("nop \n nop \n nop"); // apparently used to properly time stuff (though I fail to see how 3 0x90s are gonna help)
-    gpio_put(CS_PIN, !value); // set cs to value, putting it either into or out of select mode (low is enabled, high is disabled)
+    gpio_put(CS_PIN, !value);          // set cs to value, putting it either into or out of select mode (low is enabled, high is disabled)
     asm volatile("nop \n nop \n nop");
 }
 
-void DisplayDriver::writeCommand(uint8_t cmd) { // write command to device
-    selectMode(1); // write mode
-    gpio_put(DC_PIN, 0); // set DC_PIN to data selection mode
+void DisplayDriver::writeCommand(uint8_t cmd)
+{                                             // write command to device
+    selectMode(1);                            // write mode
+    gpio_put(DC_PIN, 0);                      // set DC_PIN to data selection mode
     spi_write_blocking(SPI_CHANNEL, &cmd, 1); // write data
-    gpio_put(DC_PIN, 1); // set DC_PIN to register mode
-    selectMode(0); // out of write mode
+    gpio_put(DC_PIN, 1);                      // set DC_PIN to register mode
+    selectMode(0);                            // out of write mode
 }
 
-void DisplayDriver::writeCommandParameter(uint8_t data) { // set parameter from previously executed command
-    selectMode(1); // write mode
+void DisplayDriver::writeCommandParameter(uint8_t data)
+{                                              // set parameter from previously executed command
+    selectMode(1);                             // write mode
     spi_write_blocking(SPI_CHANNEL, &data, 1); // write data
-    selectMode(0); // out of write mode
+    selectMode(0);                             // out of write mode
 }
 
-void DisplayDriver::writeData(void *myBuffer, int numberOfBytes) { // Only writes 8 bit data, so I need to write my 16 bit by using two 8 bit packets
+void DisplayDriver::writeData(void *myBuffer, int numberOfBytes)
+{ // Only writes 8 bit data, so I need to write my 16 bit by using two 8 bit packets
     selectMode(1);
-    spi_write_blocking(SPI_CHANNEL, (uint8_t*) myBuffer, numberOfBytes); // write data to device, and tell it how many bytes are being written
-    selectMode(0); // take device out of write mode
+    spi_write_blocking(SPI_CHANNEL, (uint8_t *)myBuffer, numberOfBytes); // write data to device, and tell it how many bytes are being written
+    selectMode(0);                                                       // take device out of write mode
 }
 
 /*
@@ -53,7 +62,12 @@ void DisplayDriver::writeData(void *myBuffer, int numberOfBytes) { // Only write
 uint DisplayDriver::actualBaudRate = 0; // initialization
 uint64_t DisplayDriver::fillAndRenderBufferTime = 0;
 
-void DisplayDriver::initDisplay() {
+void DisplayDriver::initDisplay()
+{
+    Rx[0][0] = 1;
+    Ry[1][1] = 1;
+    Rz[2][2] = 1;
+
     actualBaudRate = spi_init(SPI_CHANNEL, 75 * 1000000); // initiate the device with buadrate/frequency at 75MHz, though it wont be able to hit this, so it'll limit down a bit lower (62~63MHz in testing)
 
     gpio_set_function(SDI_PIN, GPIO_FUNC_SPI); // initiate the 3 SPI pins
@@ -65,12 +79,12 @@ void DisplayDriver::initDisplay() {
     gpio_set_dir(CS_PIN, GPIO_OUT);
     gpio_put(CS_PIN, 0); // select mode
 
-    //initiate reset pin
+    // initiate reset pin
     gpio_init(RST_PIN);
     gpio_set_dir(RST_PIN, GPIO_OUT);
     gpio_put(RST_PIN, 1); // reset pin is 0 when resetting
 
-    //initiate dc pin
+    // initiate dc pin
     gpio_init(DC_PIN);
     gpio_set_dir(DC_PIN, GPIO_OUT);
     gpio_put(DC_PIN, 1); // data mode
@@ -78,11 +92,11 @@ void DisplayDriver::initDisplay() {
     // reset display (low == enabled)
     sleep_ms(10);
     gpio_put(RST_PIN, 0); // resetting
-    sleep_ms(10); // give time to process the pin input
+    sleep_ms(10);         // give time to process the pin input
     gpio_put(RST_PIN, 1); // reset disabled
 
     writeCommand(1); // 1 == software reset
-    sleep_ms(100); // give time to reset
+    sleep_ms(100);   // give time to reset
 
     /* unnecessary commands.  Adafruit uses them, no clue why, but they're undocumented (according to them)
     writeCommand(0xEF);// undocumented commands below, used by Adafruit
@@ -135,14 +149,14 @@ void DisplayDriver::initDisplay() {
     writeCommandParameter(0x00);*/
 
     writeCommand(COMMAND_MEMORY_ACCESS_CONTROL); // set memory access mode (read and write scanning direction of frame memory)
-    writeCommandParameter(0b11101000); // this sets the rotation of the display (page 127 of datasheet, these are 6 bits), 0x48 is default, 0xE0 = 11100000 (flip X, flip Y, swap rows and colums (rotate)), I forgot to swap the declared sizes  of columns and rows and was debugging the issue for a while (lines 133 and 139), this also sets it to BGR mode, which is necessary because my endianness fix made it convert to BGR
+    writeCommandParameter(0b11101000);           // this sets the rotation of the display (page 127 of datasheet, these are 6 bits), 0x48 is default, 0xE0 = 11100000 (flip X, flip Y, swap rows and colums (rotate)), I forgot to swap the declared sizes  of columns and rows and was debugging the issue for a while (lines 133 and 139), this also sets it to BGR mode, which is necessary because my endianness fix made it convert to BGR
 
     writeCommand(COMMAND_PIXEL_FORMAT);
     writeCommandParameter(0x55); // sets 16 bits per pixel on both DPI and DBI
 
     // set refresh rate to 70hz
     writeCommand(COMMAND_FRAME_CONTROL);
-    writeCommandParameter(0x00); // see datasheet page 155
+    writeCommandParameter(0x00);    // see datasheet page 155
     writeCommandParameter(0b11011); // this is the data to set it to 70hz
 
     // gamma fixes make it so the color is a little more saturated
@@ -151,12 +165,12 @@ void DisplayDriver::initDisplay() {
 
     // correct positive gamma
     writeCommand(COMMAND_POSITIVE_GAMMA);
-    writeData(new uint8_t[15]{ 0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00 }, 15); // set positive gamma curve
+    writeData(new uint8_t[15]{0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1, 0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00}, 15); // set positive gamma curve
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     // correct negative gamma
     writeCommand(COMMAND_NEGATIVE_GAMMA);
-    writeData(new uint8_t[15]{ 0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f }, 15); // set negative gamma curve
+    writeData(new uint8_t[15]{0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1, 0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f}, 15); // set negative gamma curve
     // ShawnHyam's original code for the gamma fixes used a constructor for the uint8_t array that is not valid in either cpp as a whole, this specific version of cpp, or this specific compiler.
 
     writeCommand(COMMAND_EXIT_SLEEP); // wake up the display
@@ -166,179 +180,175 @@ void DisplayDriver::initDisplay() {
     // setup window after display is on
 
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
-    writeCommandParameter(0x00); // starts at 0
+    writeCommandParameter(0x00);              // starts at 0
     writeCommandParameter(0x00);
     writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the size.X
-    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the size.X
+    writeCommandParameter(DISPLAY_WIDTH & 0xFF);      // get the lower byte of the size.X
 
-    writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(0x00); // the command takes 4 bytes of data
-    writeCommandParameter(0x00); // the first 2 are the first y coordinate, starting at px 0
+    writeCommand(COMMAND_ROW_ADDRESS_SET);             // set row address, meaning y pixel
+    writeCommandParameter(0x00);                       // the command takes 4 bytes of data
+    writeCommandParameter(0x00);                       // the first 2 are the first y coordinate, starting at px 0
     writeCommandParameter(DISPLAY_HEIGHT >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the size.Y
+    writeCommandParameter(DISPLAY_HEIGHT & 0xFF);      // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE); // set it from setting mode to write mode
 
     absolute_time_t start = get_absolute_time();
     fillBuffer(White); // fill display buffer
-    renderBuffer(); // push buffer
+    renderBuffer();    // push buffer
     fillAndRenderBufferTime = absolute_time_diff_us(start, get_absolute_time());
 }
 
-void DisplayDriver::fillBuffer(uint16_t color) { // memset doesn't work with multiple bytes, but std::fill does
-    std::fill(buffer, buffer+(DISPLAY_WIDTH*DISPLAY_HEIGHT), color);
+void DisplayDriver::fillBuffer(uint16_t color)
+{ // memset doesn't work with multiple bytes, but std::fill does
+    std::fill(buffer, buffer + (DISPLAY_WIDTH * DISPLAY_HEIGHT), color);
     // I could add a check for if the uint16_t is compatible with memset (2 bytes are identical), but the optimization seems useless considering the rarity of the situation
 }
 
-void DisplayDriver::renderBuffer() {
+void DisplayDriver::renderBuffer()
+{
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
-    writeCommandParameter(0x00); // starts at 0
+    writeCommandParameter(0x00);              // starts at 0
     writeCommandParameter(0x00);
     writeCommandParameter(DISPLAY_WIDTH >> 8 & 0xFF); // get the upper byte of the size.X
-    writeCommandParameter(DISPLAY_WIDTH & 0xFF); // get the lower byte of the size.X
+    writeCommandParameter(DISPLAY_WIDTH & 0xFF);      // get the lower byte of the size.X
 
-    writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(0x00); // the command takes 4 bytes of data
-    writeCommandParameter(0x00); // the first 2 are the first y coordinate, starting at px 0
+    writeCommand(COMMAND_ROW_ADDRESS_SET);             // set row address, meaning y pixel
+    writeCommandParameter(0x00);                       // the command takes 4 bytes of data
+    writeCommandParameter(0x00);                       // the first 2 are the first y coordinate, starting at px 0
     writeCommandParameter(DISPLAY_HEIGHT >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(DISPLAY_HEIGHT & 0xFF); // get the lower byte of the size.Y
+    writeCommandParameter(DISPLAY_HEIGHT & 0xFF);      // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE); // set it from setting mode to write mode
 
     writeData(buffer, BUFFER_SIZE);
 }
 
-void DisplayDriver::drawPixel(Vector2 point, uint16_t color) {
-    buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)] = color;
+void DisplayDriver::drawPixel(Vector2 point, uint16_t color)
+{
+    buffer[(int)(point.Y * DISPLAY_WIDTH + point.X)] = color;
 }
 
-void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t color) { // negative length for negative direction
-    if (length < 0) {
+void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t color)
+{ // negative length for negative direction
+    if (length < 0)
+    {
         if (point.X + length < 0)
             length = -point.X;
-        std::fill(buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X+length), buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X), color);
-    } else {
+        std::fill(buffer + (uint)(point.Y * DISPLAY_WIDTH + point.X + length), buffer + (uint)(point.Y * DISPLAY_WIDTH + point.X), color);
+    }
+    else
+    {
         if (point.X + length >= DISPLAY_WIDTH)
             length = DISPLAY_WIDTH - point.X - 1;
-        std::fill(buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X), buffer+(uint)(point.Y*DISPLAY_WIDTH+point.X+length), color);
+        std::fill(buffer + (uint)(point.Y * DISPLAY_WIDTH + point.X), buffer + (uint)(point.Y * DISPLAY_WIDTH + point.X + length), color);
     }
 }
 
-void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, uint16_t color) {
-    if (length < 0) {
-        length -= 1;
-        if (point.Y + length < 0) // limit the line length to be within display limits
+void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, const uint16_t color)
+{
+    if (length < 0)
+    {
+        length += 1; // convert from base 1 to base 0
+        if (point.Y + length < 0)
             length = -point.Y;
 
-        uint16_t *base = &buffer[(uint)((point.Y+length+1)*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)  
-        for (uint16_t h = 0; h < (-length); h++) { // iterate through the size.Y
-            *(base+DISPLAY_WIDTH*h) = color;
+        if (point.Y >= DISPLAY_HEIGHT) {
+            length = (point.Y+length)-DISPLAY_HEIGHT+1; // +1 cause base 0
+            point.Y = 239;
+            if (length >= 0)
+                return; // no line to be drawn
         }
-    } else {
-        length += 1;
-        if (point.Y + length >= DISPLAY_HEIGHT) // limit the line length to be within display limits
-            length = DISPLAY_HEIGHT - point.Y - 1;
-        
-        uint16_t *base = &buffer[(uint)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)  
-        for (int h = 0; h < length; h++) { // iterate through the size.Y
-            *(base+DISPLAY_WIDTH*h) = color;
+
+        uint16_t *base = &buffer[(uint)((point.Y + length) * DISPLAY_WIDTH + point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
+        for (int16_t h = length; h < 0; h++)
+        { // iterate through the size.Y, <= because base 0
+            *base = color;
+            base += DISPLAY_WIDTH;
+        }
+    }
+    else
+    {
+        length -= 1;                               // convert from base 1 to base 0
+        if (point.Y + length >= DISPLAY_HEIGHT)    // limit the line length to be within display limits
+            length = DISPLAY_HEIGHT - 1 - point.Y; // -1 converts DISPLAY_HEIGHT from base 1 to base 0
+        if (point.Y < 0) {
+            length = (point.Y+length);
+            point.Y = 0;
+            if (length <= 0)
+                return; // no line to be drawn
+        }
+
+        uint16_t *base = &buffer[(uint)(point.Y * DISPLAY_WIDTH + point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
+        for (int16_t h = 0; h <= length; h++)
+        { // iterate through the size.Y, <= because base 0
+            *base = color;
+            base += DISPLAY_WIDTH;
         }
     }
 }
 
-void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color) {
-    start = Vector2(round(start.X), round(start.Y));
-    end = Vector2(round(end.X), round(end.Y));
+void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t color)
+{
+    if (start.X == end.X)
+    { // handle vertical straight lines
+        drawVerticalLine(start, end.Y - start.Y, color);
+        return;
+    }
+    if (start.Y == end.Y)
+    { // handle horizontal flat lines
+        drawHorizontalLine(start, end.X - start.X, color);
+        return;
+    }
 
-    if (start.X == end.X) {
-        // round values to be nearest pixel
-        start = Vector2(round(start.X), round(start.Y));
-        end = Vector2(round(end.X), round(end.Y));
+    if (start.X > end.X)
+        std::swap(start, end);
 
-        for (int16_t x = -floor((double)thickness/2); x < ceil((double)thickness/2); x++) {
-            drawVerticalLine(start + Vector2(x, 0), end.Y-start.Y, color);
-        }
-    } else {
-        double slope = (start.Y - end.Y)/(start.X - end.X);
-        double b = start.Y - start.X * slope;
-        
-        // start X and Y correction (reducing the point to be within the bounds of the display)
-        if (start.Y < 0) {
-            start.Y = 0;
-            start.X = -b/slope;
-        } else if (start.Y >= DISPLAY_HEIGHT) {
-            start.Y = DISPLAY_HEIGHT-1;
-            start.X = (start.Y - b)/slope;
-        }
-        if (start.X < 0) {
-            start.X = 0;
-            start.Y = b;
-        } else if (start.X >= DISPLAY_WIDTH) {
-            start.X = DISPLAY_WIDTH-1;
-            start.Y = start.X*slope + b;
-        }
+    // sloped lines are handled here
+    double slope = (end.Y - start.Y) / (end.X - start.X);
+    int16_t yInt = round(start.Y - slope * start.X);
 
-        // end X and Y correction (reducing the point to be within the bounds of the display)
-        if (end.Y < 0) {
-            end.Y = 0;
-            end.X = -b/slope;
-        } else if (end.Y >= DISPLAY_HEIGHT) {
-            end.Y = DISPLAY_HEIGHT-1;
-            end.X = (end.Y - b)/slope;
-        }
-        if (end.X < 0) {
-            end.X = 0;
-            end.Y = b;
-        } else if (end.X >= DISPLAY_WIDTH) {
-            end.X = DISPLAY_WIDTH-1;
-            end.Y = end.X*slope + b;
+    int16_t xMin = std::max(std::min(start.X, end.X), 0.0);                 // constrain to display
+    int16_t xMax = std::min(std::max(start.X, end.X), DISPLAY_WIDTH - 1.0); // constrain to display
+
+    int16_t oldY = round(slope * xMin + yInt); // starting y value
+    int16_t y;
+    bool init = false;
+
+    for (int16_t x = xMin; x <= xMax; x++)
+    {
+        y = std::min(std::max(round(slope * x + yInt), 0.0), DISPLAY_HEIGHT - 1.0); // calc y
+
+        if (!init) 
+        { // if it's the first one
+            init = true;
+            drawPixel(Vector2(x, y), color);
+            continue;
         }
 
-        uint16_t oldY = 0;
-        bool oldYDefined = false;
-        if (start.X < end.X) { //(192, 155), (213, 179)
-            for (uint16_t x = start.X; x <= end.X; x++) { // iterate through each x coordinate
-                uint16_t y = x * slope + b; // calculate the y coordinate
-                if (!oldYDefined) {
-                    oldY = y;
-                    oldYDefined = true; // used to determine if this is the first cycle or not
-                } else {
-                    drawVerticalLine(Vector2(x, oldY), y-oldY, color); // determine height by the difference of the previous coordinate's height and the new height
-                    oldY = y;
-                }
-            }
-        } else {
-            for (uint x = end.X; x <= start.X; x++) {
-                uint16_t y = x * slope + b;
-                if (!oldYDefined) {
-                    oldY = y;
-                    oldYDefined = true;
-                } else {
-                    drawVerticalLine(Vector2(x, oldY), y-oldY, color);
-                    oldY = y;
-                }
-            }
-        }
+        if (y != oldY)
+        {
+            if (oldY > y) // makes the stepping connect to each other so that it looks smoother
+                oldY += 1;
+            else
+                oldY -= 1;
+            drawVerticalLine(Vector2(x, y), oldY - y, color);
+            oldY = y;
+        } else 
+            drawPixel(Vector2(x, y), color);
     }
 }
 
-void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) { // SPECIFIC order of corners
-    // in this function, topLeft == (0, Y) topRight = (X, Y), bottomLeft = (0, 0), bottomRight = (X, 0)
-    // the top and bottoms are not based on screen orientation, but rather numeric magnitude
-    /*
-        edges = {
-            0->1, 0->X
-            0->2, 0>Y
-            1->3, X->XY
-            2->3  Y->XY
-        }
-    */
+void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color)
+{ // SPECIFIC order of corners
+    int16_t maxY = round(corners[0].Y), 
+            minY = maxY; // have to define because default values may be lower than all else
 
-    int16_t maxY, minY = round(corners[0].Y);
     // the max coordinates and above top/bottom max/min definitions are for later
     // they're used to determine how the scanline should be calculated for drawing the face
 
-    for (Vector2& corner : corners) {
+    for (Vector2 &corner : corners)
+    {
         corner.round(); // round to nearest pixel
         double Y = corner.Y;
         if (Y > maxY)
@@ -346,18 +356,18 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) { /
         else if (Y < minY)
             minY = Y;
     }
-    
+
     // define slopes and offsets to be used later for conversion between x and y coordinates
     // the labels next to the slopes/offsets assume an unrotated camera staring at an unrotated cube
-    double m0 = (corners[0].Y - corners[1].Y)/(corners[0].X - corners[1].X), // bottom edge
-           m1 = (corners[1].Y - corners[3].Y)/(corners[1].X - corners[3].X), // right edge
-           m2 = (corners[3].Y - corners[2].Y)/(corners[3].X - corners[2].X), // top edge
-           m3 = (corners[2].Y - corners[0].Y)/(corners[2].X - corners[0].X), // left edge
-           b0 = (corners[0].Y - corners[0].X * m0), // bottom edge offset
-           b1 = (corners[1].Y - corners[1].X * m1), // right edge offset
-           b2 = (corners[3].Y - corners[3].X * m2), // top edge offset
-           b3 = (corners[2].Y - corners[2].X * m3); // left edge offset
-    
+    double m0 = (corners[0].Y - corners[1].Y) / (corners[0].X - corners[1].X), // bottom edge
+        m1 = (corners[1].Y - corners[3].Y) / (corners[1].X - corners[3].X),    // right edge
+        m2 = (corners[3].Y - corners[2].Y) / (corners[3].X - corners[2].X),    // top edge
+        m3 = (corners[2].Y - corners[0].Y) / (corners[2].X - corners[0].X),    // left edge
+        b0 = (corners[0].Y - corners[0].X * m0),                               // bottom edge offset
+        b1 = (corners[1].Y - corners[1].X * m1),                               // right edge offset
+        b2 = (corners[3].Y - corners[3].X * m2),                               // top edge offset
+        b3 = (corners[2].Y - corners[2].X * m3);                               // left edge offset
+
     // declares+defines whether these edges are special cases or not (slope = +-inf)
     // note that this doesn't affect horizontal edges because if they've a slope of 0, they just wont be used (maxY == maxY2)
     bool s0 = (corners[0].X == corners[1].X),
@@ -365,61 +375,66 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) { /
          s2 = (corners[3].X == corners[2].X),
          s3 = (corners[2].X == corners[0].X);
 
-    std::deque<int16_t> xIntercepts; 
+    std::deque<int16_t> xIntercepts;
 
     // round the min and max to display limits
-    minY = minY < 0 ? 0 : (minY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT-1 : minY);
-    maxY = maxY < 0 ? 0 : (maxY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT-1 : maxY);
-    
-    uint16_t *base = &buffer[(int)(minY*DISPLAY_WIDTH)]; // make base starting at min point
+    minY = minY < 0 ? 0 : (minY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT - 1 : minY);
+    maxY = maxY < 0 ? 0 : (maxY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT - 1 : maxY);
 
-    for (uint16_t y = minY; y <= maxY; y++) {
+    uint16_t *base = &buffer[(int)(minY * DISPLAY_WIDTH)]; // make base starting at min point
+
+    for (uint16_t y = minY; y <= maxY; y++)
+    {
         // the below if/else is for calculating xIntercepts
         // xIntercepts get the max and min x values on a horizontal line
         // this is used for scanline calculations
 
-
         // you'll notice that this repeated if statement switches between >= and > often
         // this is because there can only be one case for if y == corners[1].Y
         // if there are more than 1 case, then it will find too many xInts, and fail
-        if ((y <= corners[1].Y && y >= corners[0].Y) || (y >= corners[1].Y && y <= corners[0].Y)) {
+        if ((y <= corners[1].Y && y >= corners[0].Y) || (y >= corners[1].Y && y <= corners[0].Y))
+        {
             if (s0)
                 xIntercepts.emplace_back(corners[1].X);
             else
-                xIntercepts.emplace_back((y-b0)/m0);
+                xIntercepts.emplace_back((y - b0) / m0);
         }
 
-        if ((y < corners[1].Y && y >= corners[3].Y) || (y > corners[1].Y && y <= corners[3].Y)) {
+        if ((y < corners[1].Y && y >= corners[3].Y) || (y > corners[1].Y && y <= corners[3].Y))
+        {
             if (s1)
                 xIntercepts.emplace_back(corners[1].X);
             else
-                xIntercepts.emplace_back((y-b1)/m1);
+                xIntercepts.emplace_back((y - b1) / m1);
         }
 
-        if ((y <= corners[2].Y && y > corners[3].Y) || (y >= corners[2].Y && y < corners[3].Y)) {
+        if ((y <= corners[2].Y && y > corners[3].Y) || (y >= corners[2].Y && y < corners[3].Y))
+        {
             if (s2)
                 xIntercepts.emplace_back(corners[2].X);
             else
-                xIntercepts.emplace_back((y-b2)/m2);
+                xIntercepts.emplace_back((y - b2) / m2);
         }
 
-        if ((y < corners[2].Y && y > corners[0].Y) || (y > corners[2].Y && y < corners[0].Y)) {
+        if ((y < corners[2].Y && y > corners[0].Y) || (y > corners[2].Y && y < corners[0].Y))
+        {
             if (s3)
                 xIntercepts.emplace_back(corners[2].X);
             else
-                xIntercepts.emplace_back((y-b3)/m3);
+                xIntercepts.emplace_back((y - b3) / m3+1); // strangely, one edge renders one pixel too far left, needs to be investigated further, but this fixes it for now
         }
 
         std::sort(xIntercepts.begin(), xIntercepts.end()); // sort smallest to largest
 
-        if (xIntercepts.size() == 2) { // should be impossible for this to fail, but can't be too certain
-            // round the min and max to display limits
+        if (xIntercepts.size() == 2)
+        { // should be impossible for this to fail, but can't be too certain
+            // constrain to display limits
             for (uint8_t i = 0; i < 2; i++)
-                xIntercepts[i] = xIntercepts[i] < 0 ? 0 : (xIntercepts[i] >= DISPLAY_WIDTH ? DISPLAY_WIDTH-1 : xIntercepts[i]);
+                xIntercepts[i] = xIntercepts[i] < 0 ? 0 : (xIntercepts[i] >= DISPLAY_WIDTH ? DISPLAY_WIDTH - 1 : xIntercepts[i]);
 
             // now that we've calculated the scanline, we can render it in
             for (uint16_t x = xIntercepts[0]; x <= xIntercepts[1]; x++)
-                *(base+x) = color;
+                *(base + x) = color;
         }
 
         base += DISPLAY_WIDTH; // go down one length (following the iteration)
@@ -427,56 +442,81 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color) { /
     }
 }
 
-
-void DisplayDriver::drawRect(Vector2 point, Vector2 size, uint16_t backgroundColor) {
+void DisplayDriver::drawRect(Vector2 point, Vector2 size, uint16_t backgroundColor)
+{
     point = Vector2(round(point.X), round(point.Y));
-    uint16_t *base = &buffer[(int)(point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
+    if (point.X < 0)
+    {
+        size.X += point.X;
+        point.X = 0;
+    }
+    if (point.Y < 0)
+    {
+        size.Y += point.Y;
+        point.Y = 0;
+    }
+    if (point.X < DISPLAY_WIDTH && point.Y < DISPLAY_HEIGHT && size.X > 0 && size.Y > 0)
+    {
+        uint16_t *base = &buffer[(int)(point.Y * DISPLAY_WIDTH + point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
 
-	for (int w = 0; w < size.X; w++) { // iterate through the size.X
-        if (w + point.X < DISPLAY_WIDTH) {
-            uint16_t *loc = base + w; // get a pointer to the pixel at offset w
-            
-            for (int h = 0; h < size.Y; h++) { // iterate through the size.Y
-                if (h + point.Y < DISPLAY_HEIGHT)
-                    *(loc+DISPLAY_WIDTH*h) = backgroundColor;
-            }
-        }
-	}
-}
+        for (int w = 0; w < size.X; w++)
+        { // iterate through the size.X
+            if (w + point.X < DISPLAY_WIDTH)
+            {
+                uint16_t *loc = base + w; // get a pointer to the pixel at offset w
 
-void DisplayDriver::drawOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor) {
-    uint16_t *base = &buffer[(int) (point.Y*DISPLAY_WIDTH+point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
-
-	for (int w = 0; w < size.X; w++) { // iterate through the size.X
-        if (w + point.X < DISPLAY_WIDTH) {
-            uint16_t *loc = base + w; // get a pointer to the pixel at offset w
-            
-            for (int h = 0; h < size.Y; h++) { // iterate through the size.Y
-                if (h + point.Y < DISPLAY_HEIGHT) {
-                    if (w < borderThickness || h < borderThickness || (size.X-w) <= borderThickness || (size.Y-h) <= borderThickness) // <= cause the greater range never gets hit (0-239, never touches 240)
-                        *(loc+DISPLAY_WIDTH*h) = borderColor; // add DISPLAY_WIDTH to loc, dereferencing pointer so I can write to it
-                        // adding DISPLAY_WIDTH because we need to move down one pixel, which is the same as moving across the entire display once
-                    else
-                        *(loc+DISPLAY_WIDTH*h) = backgroundColor;
+                for (int h = 0; h < size.Y; h++)
+                { // iterate through the size.Y
+                    if (h + point.Y < DISPLAY_HEIGHT)
+                        *(loc + DISPLAY_WIDTH * h) = backgroundColor;
                 }
             }
-        }  
-	}
+        }
+    }
 }
 
-int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
-    const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<const uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
+void DisplayDriver::drawOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor)
+{
+    uint16_t *base = &buffer[(int)(point.Y * DISPLAY_WIDTH + point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
+
+    for (int w = 0; w < size.X; w++)
+    { // iterate through the size.X
+        if (w + point.X < DISPLAY_WIDTH)
+        {
+            uint16_t *loc = base + w; // get a pointer to the pixel at offset w
+
+            for (int h = 0; h < size.Y; h++)
+            { // iterate through the size.Y
+                if (h + point.Y < DISPLAY_HEIGHT)
+                {
+                    if (w < borderThickness || h < borderThickness || (size.X - w) <= borderThickness || (size.Y - h) <= borderThickness) // <= cause the greater range never gets hit (0-239, never touches 240)
+                        *(loc + DISPLAY_WIDTH * h) = borderColor;                                                                         // add DISPLAY_WIDTH to loc, dereferencing pointer so I can write to it
+                    // adding DISPLAY_WIDTH because we need to move down one pixel, which is the same as moving across the entire display once
+                    else
+                        *(loc + DISPLAY_WIDTH * h) = backgroundColor;
+                }
+            }
+        }
+    }
+}
+
+int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color)
+{                                                                                                // font size is currently forced
+    const uint8_t(*characterData)[FONT_HEIGHT] = &fontData[static_cast<const uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
-    uint16_t* base = &buffer[(int) (point.X + point.Y*DISPLAY_WIDTH)];
+    uint16_t *base = &buffer[(int)(point.X + point.Y * DISPLAY_WIDTH)];
 
-    for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT; yCoord++) { // iterates each "row" of the character (each y coordinate)
+    for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT; yCoord++)
+    {                                               // iterates each "row" of the character (each y coordinate)
         uint8_t rowData = (*characterData)[yCoord]; // dereferences the pointer to the uint8_t which stores the 8 x coordinates for each y coordinate
-        uint16_t* xRow = base + yCoord*DISPLAY_WIDTH;
+        uint16_t *xRow = base + yCoord * DISPLAY_WIDTH;
 
-        for (uint8_t xCoord = 0; xCoord < FONT_WIDTH; xCoord++) {
-            if (rowData & (1 << (8 - xCoord))) { // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
-                                // (8 - xCoord) because it has to be left to right
+        for (uint8_t xCoord = 0; xCoord < FONT_WIDTH; xCoord++)
+        {
+            if (rowData & (1 << (8 - xCoord)))
+            {   // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
+                // (8 - xCoord) because it has to be left to right
                 *(xRow + xCoord) = Color;
             }
         }
@@ -485,198 +525,213 @@ int DisplayDriver::drawChar(Vector2 point, char c, uint16_t Color) { // font siz
     return FONT_WIDTH; // size.X of each character
 }
 
-void DisplayDriver::drawCenteredText(Vector2 point, std::string text, uint16_t textColor) { // centered around (x, y)
+void DisplayDriver::drawCenteredText(Vector2 point, std::string text, uint16_t textColor)
+{                                                             // centered around (x, y)
     uint width = static_cast<uint>(text.size()) * FONT_WIDTH; // font is 8 px wide
-    point -= Vector2(width/2, FONT_HEIGHT/2);
+    point -= Vector2(width / 2, FONT_HEIGHT / 2);
 
-    for (char &character : text) { // loop through all characters
-        point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
+    for (char &character : text)
+    {                                                     // loop through all characters
+        point.X += drawChar(point, character, textColor); // draw individual character (returns size.X)
     }
 }
 
-void DisplayDriver::drawText(Vector2 point, std::string text, uint16_t textColor) { // x, y is the top left corner, renders left to right
-    for (char &character : text) { // loop through all characters
-        point.X += drawChar(point, character, textColor);// draw individual character (returns size.X)
+void DisplayDriver::drawText(Vector2 point, std::string text, uint16_t textColor)
+{ // x, y is the top left corner, renders left to right
+    double origX = point.X;
+    for (char &character : text) // loop through all characters
+    {
+        if (character != '\n' || point.X >= (DISPLAY_WIDTH-FONT_WIDTH)) // \n support, I should write this into every text function, but I'm lazy rn
+            point.X += drawChar(point, character, textColor); // draw individual character (returns size.X)
+        else {
+            point.Y += FONT_HEIGHT;
+            point.X = origX;
+        }
     }
 }
-
-
 
 // ALT text functions are a hacky fix to make text bigger.  A better fix would be a proper scaling font system, but that sounds annoying to implement, and I'd likely end up rarely using it
-int DisplayDriver::ALTdrawChar(Vector2 point, char c, uint16_t Color) { // font size is currently forced
-    const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
+int DisplayDriver::ALTdrawChar(Vector2 point, char c, uint16_t Color)
+{                                                                                          // font size is currently forced
+    const uint8_t(*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(c - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
     // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
 
-    uint16_t* base = &buffer[(int) (point.X + point.Y*DISPLAY_WIDTH)];
+    uint16_t *base = &buffer[(int)(point.X + point.Y * DISPLAY_WIDTH)];
 
-    for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT*2; yCoord+=2) { // iterates each "row" of the character (each y coordinate)
-        uint8_t rowData = (*characterData)[yCoord/2]; // divide by 2 because this font is 2x bigger
-        uint16_t* xRow = base + yCoord*DISPLAY_WIDTH;
-        uint16_t* xRow2 = base + (yCoord+1)*DISPLAY_WIDTH;
+    for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT * 2; yCoord += 2)
+    {                                                   // iterates each "row" of the character (each y coordinate)
+        uint8_t rowData = (*characterData)[yCoord / 2]; // divide by 2 because this font is 2x bigger
+        uint16_t *xRow = base + yCoord * DISPLAY_WIDTH;
+        uint16_t *xRow2 = base + (yCoord + 1) * DISPLAY_WIDTH;
 
-        for (uint8_t xCoord = 0; xCoord < FONT_WIDTH*2; xCoord+=2) { // font is 2x bigger than normal
-            if (rowData & (1 << (8 - xCoord/2))) { // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
-                *(xRow + xCoord) = Color; // top left
-                *(xRow + (xCoord+1)) = Color; // bottom left
-                *(xRow2 + xCoord) = Color; // top right
-                *(xRow2 + (xCoord+1)) = Color; // bottom right
+        for (uint8_t xCoord = 0; xCoord < FONT_WIDTH * 2; xCoord += 2)
+        { // font is 2x bigger than normal
+            if (rowData & (1 << (8 - xCoord / 2)))
+            {                                    // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
+                *(xRow + xCoord) = Color;        // top left
+                *(xRow + (xCoord + 1)) = Color;  // bottom left
+                *(xRow2 + xCoord) = Color;       // top right
+                *(xRow2 + (xCoord + 1)) = Color; // bottom right
             }
         }
     }
 
-    return FONT_WIDTH*2; // size.X of each character
+    return FONT_WIDTH * 2; // size.X of each character
 }
 
-void DisplayDriver::ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor) { // alternate is a hacky way to render 2x bigger text
+void DisplayDriver::ALTdrawCenteredText(Vector2 point, std::string text, uint16_t textColor)
+{                                                                 // alternate is a hacky way to render 2x bigger text
     uint width = static_cast<uint>(text.size()) * FONT_WIDTH * 2; // font is 2x wider than normal
-    int startX = point.X - width/2; // subtract half the size.X to reverse the offset
-    int startY = point.Y - FONT_HEIGHT; // this font is 2x bigger than normal, and so it cancells out the divide by 2
+    int startX = point.X - width / 2;                             // subtract half the size.X to reverse the offset
+    int startY = point.Y - FONT_HEIGHT;                           // this font is 2x bigger than normal, and so it cancells out the divide by 2
 
-    for (char &character : text) { // loop through all characters
+    for (char &character : text)
+    {                                                                         // loop through all characters
         startX += ALTdrawChar(Vector2(startX, startY), character, textColor); // draw individual character (returns size.X, which is useless because text only has 2 possible size.Xes right now)
     }
 }
 
-
-
-void DisplayDriver::renderRect(Vector2 point, Vector2 size, uint16_t rectColor) { // custom optimized render function
+void DisplayDriver::renderRect(Vector2 point, Vector2 size, uint16_t rectColor)
+{ // custom optimized render function
     if (point.X + size.X > DISPLAY_WIDTH)
-        size.X = DISPLAY_WIDTH-point.X;
+        size.X = DISPLAY_WIDTH - point.X;
     if (point.Y + size.Y > DISPLAY_HEIGHT)
-        size.Y = DISPLAY_HEIGHT-point.Y;
-    
-    uint16_t *newBuffer = new uint16_t[(uint)(size.X*size.Y)];
-    std::fill(newBuffer, newBuffer+(uint)(size.X*size.Y), rectColor);
+        size.Y = DISPLAY_HEIGHT - point.Y;
 
-    writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
-    writeCommandParameter(((int) point.X) >> 8 & 0xFF); // starting x pos
-    writeCommandParameter(((int) point.X) & 0xFF);
-    writeCommandParameter(((int) point.X+(uint)size.X-1) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.X+(uint)size.X-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
+    uint16_t *newBuffer = new uint16_t[(uint)(size.X * size.Y)];
+    std::fill(newBuffer, newBuffer + (uint)(size.X * size.Y), rectColor);
 
-    writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(((int) point.Y) >> 8 & 0xFF); // starting y pos
-    writeCommandParameter(((int) point.Y) & 0xFF);
-    writeCommandParameter(((int) point.Y+(uint)size.Y-1) >> 8 & 0xFF); // ending y pos
-    writeCommandParameter(((int) point.Y+(uint)size.Y-1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
+    writeCommand(COMMAND_COLUMN_ADDRESS_SET);          // set column address, meaning x pixel
+    writeCommandParameter(((int)point.X) >> 8 & 0xFF); // starting x pos
+    writeCommandParameter(((int)point.X) & 0xFF);
+    writeCommandParameter(((int)point.X + (uint)size.X - 1) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.X + (uint)size.X - 1) & 0xFF); // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
+
+    writeCommand(COMMAND_ROW_ADDRESS_SET);             // set row address, meaning y pixel
+    writeCommandParameter(((int)point.Y) >> 8 & 0xFF); // starting y pos
+    writeCommandParameter(((int)point.Y) & 0xFF);
+    writeCommandParameter(((int)point.Y + (uint)size.Y - 1) >> 8 & 0xFF); // ending y pos
+    writeCommandParameter(((int)point.Y + (uint)size.Y - 1) & 0xFF);      // -1 because it's base 0 (idk, that doesnt intuitively make sense to me, but it works...)
 
     writeCommand(COMMAND_MEMORY_WRITE);
 
-    writeData(newBuffer, size.X*size.Y*sizeof(uint16_t)); // give it the base pointer
-    
-    delete [] newBuffer;
+    writeData(newBuffer, size.X * size.Y * sizeof(uint16_t)); // give it the base pointer
+
+    delete[] newBuffer;
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor) {
+void DisplayDriver::renderOutlinedRect(Vector2 point, Vector2 size, uint16_t backgroundColor, uint16_t borderThickness, uint16_t borderColor)
+{
     int newWidth = size.X;
     int newHeight = size.Y;
     if (point.X + size.X > DISPLAY_WIDTH)
-        newWidth = DISPLAY_WIDTH-point.X;
+        newWidth = DISPLAY_WIDTH - point.X;
     if (point.Y + size.Y > DISPLAY_HEIGHT)
-        newHeight = DISPLAY_HEIGHT-point.Y;
+        newHeight = DISPLAY_HEIGHT - point.Y;
 
-    uint16_t *newBuffer = new uint16_t[newWidth*newHeight];
-    std::fill(newBuffer, newBuffer+newWidth*newHeight, backgroundColor);
+    uint16_t *newBuffer = new uint16_t[newWidth * newHeight];
+    std::fill(newBuffer, newBuffer + newWidth * newHeight, backgroundColor);
 
-    for (int newX = 0; newX < newWidth; newX++) {
-        for (int newY = 0; newY < newHeight; newY++) {
-            if (newX < (borderThickness) || newX >= (size.X-borderThickness) || newY < borderThickness || newY >= (size.Y-borderThickness))
-                *(newBuffer+newX+newY*newWidth) = borderColor;
+    for (int newX = 0; newX < newWidth; newX++)
+    {
+        for (int newY = 0; newY < newHeight; newY++)
+        {
+            if (newX < (borderThickness) || newX >= (size.X - borderThickness) || newY < borderThickness || newY >= (size.Y - borderThickness))
+                *(newBuffer + newX + newY * newWidth) = borderColor;
         }
     }
 
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
-    writeCommandParameter(((int) point.X) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.X) & 0xFF);
-    writeCommandParameter(((int) point.X+newWidth-1) >> 8 & 0xFF); // get the upper byte of the size.X
-    writeCommandParameter(((int) point.X+newWidth-1) & 0xFF); // get the lower byte of the size.X
+    writeCommandParameter(((int)point.X) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.X) & 0xFF);
+    writeCommandParameter(((int)point.X + newWidth - 1) >> 8 & 0xFF); // get the upper byte of the size.X
+    writeCommandParameter(((int)point.X + newWidth - 1) & 0xFF);      // get the lower byte of the size.X
 
-    writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(((int) point.Y) >> 8 & 0xFF); // the command takes 4 bytes of data
-    writeCommandParameter(((int) point.Y) & 0xFF); // the first 2 are the first y coordinate, starting at px 0
-    writeCommandParameter(((int) point.Y+newHeight-1) >> 8 & 0xFF); // the last 2 are the last y coordinate
-    writeCommandParameter(((int) point.Y+newHeight-1) & 0xFF); // get the lower byte of the size.Y
+    writeCommand(COMMAND_ROW_ADDRESS_SET);                             // set row address, meaning y pixel
+    writeCommandParameter(((int)point.Y) >> 8 & 0xFF);                 // the command takes 4 bytes of data
+    writeCommandParameter(((int)point.Y) & 0xFF);                      // the first 2 are the first y coordinate, starting at px 0
+    writeCommandParameter(((int)point.Y + newHeight - 1) >> 8 & 0xFF); // the last 2 are the last y coordinate
+    writeCommandParameter(((int)point.Y + newHeight - 1) & 0xFF);      // get the lower byte of the size.Y
 
     writeCommand(COMMAND_MEMORY_WRITE);
 
-    writeData(newBuffer, newWidth*newHeight*sizeof(uint16_t)); // give it the base pointer
+    writeData(newBuffer, newWidth * newHeight * sizeof(uint16_t)); // give it the base pointer
 
-    delete [] newBuffer;
+    delete[] newBuffer;
     newBuffer = nullptr;
 }
 
-void DisplayDriver::renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor) { // x, y is the top left corner, renders left to right
+void DisplayDriver::renderText(Vector2 point, std::string text, uint16_t textColor, uint16_t backgroundColor)
+{ // x, y is the top left corner, renders left to right
     uint width = static_cast<int>(text.size()) * FONT_WIDTH;
     uint height = FONT_HEIGHT;
 
-    uint16_t* newBuffer = new uint16_t[width*height]; // allocate a buffer for the entire text size
-    std::fill(newBuffer, newBuffer+width*height, backgroundColor);
-    
+    uint16_t *newBuffer = new uint16_t[width * height]; // allocate a buffer for the entire text size
+    std::fill(newBuffer, newBuffer + width * height, backgroundColor);
+
     writeCommand(COMMAND_COLUMN_ADDRESS_SET); // set column address, meaning x pixel
-    writeCommandParameter(((int) point.X) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.X) & 0xFF);
-    writeCommandParameter(((int) point.X+width-1) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.X+width-1) & 0xFF);
+    writeCommandParameter(((int)point.X) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.X) & 0xFF);
+    writeCommandParameter(((int)point.X + width - 1) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.X + width - 1) & 0xFF);
 
     writeCommand(COMMAND_ROW_ADDRESS_SET); // set row address, meaning y pixel
-    writeCommandParameter(((int) point.Y) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.Y) & 0xFF);
-    writeCommandParameter(((int) point.Y+height-1) >> 8 & 0xFF);
-    writeCommandParameter(((int) point.Y+height-1) & 0xFF);
+    writeCommandParameter(((int)point.Y) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.Y) & 0xFF);
+    writeCommandParameter(((int)point.Y + height - 1) >> 8 & 0xFF);
+    writeCommandParameter(((int)point.Y + height - 1) & 0xFF);
 
     writeCommand(COMMAND_MEMORY_WRITE);
 
     int xPos = 0;
 
-    for (char &character : text) { // loop through all characters
-        const uint8_t (*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(character - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
+    for (char &character : text)
+    {                                                                                                  // loop through all characters
+        const uint8_t(*characterData)[FONT_HEIGHT] = &fontData[static_cast<uint8_t>(character - ' ')]; // this is 12 bytes wide, of which each byte represents one vertical pixel, and holds 8 horizontal pixels
         // c - ' ' because the character list doesn't include non printable ascii, instead opting to start at the space character
-        uint16_t* base = &newBuffer[xPos];
+        uint16_t *base = &newBuffer[xPos];
         xPos += FONT_WIDTH;
 
-        for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT; yCoord++) { // iterates each "row" of the character (each y coordinate)
+        for (uint8_t yCoord = 0; yCoord < FONT_HEIGHT; yCoord++)
+        {                                               // iterates each "row" of the character (each y coordinate)
             uint8_t rowData = (*characterData)[yCoord]; // dereferences the pointer to the uint8_t which stores the 8 x coordinates for each y coordinate
-            uint16_t* xRow = base + yCoord*width;
+            uint16_t *xRow = base + yCoord * width;
 
-            for (uint8_t xCoord = 0; xCoord < FONT_WIDTH; xCoord++) {
-                if (rowData & (1 << (8 - xCoord))) { // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
-                                    // (8 - xCoord) because it's left to right
+            for (uint8_t xCoord = 0; xCoord < FONT_WIDTH; xCoord++)
+            {
+                if (rowData & (1 << (8 - xCoord)))
+                {   // checks if the bit is a 1 or a 0, if it's 1, write a pixel, if 0, don't
+                    // (8 - xCoord) because it's left to right
                     *(xRow + xCoord) = textColor;
                 }
             }
         }
     }
 
-    writeData(newBuffer, width*height*sizeof(uint16_t)); // write the buffer
+    writeData(newBuffer, width * height * sizeof(uint16_t)); // write the buffer
 
-    delete [] newBuffer; // deallocate to save memory
+    delete[] newBuffer; // deallocate to save memory
     newBuffer = nullptr;
 }
 
-
 const Vector3 stockCubeVertexPositions[8] = {
     Vector3(-1, -1, -1), // 0, 0, 0
-    Vector3(1, -1, -1), // X, 0, 0
-    Vector3(-1, 1, -1), // 0, Y, 0
-    Vector3(-1, -1, 1), // 0, 0, Z
-    Vector3(1, 1, -1), // X, Y, 0
-    Vector3(1, -1, 1), // X, 0, Z
-    Vector3(-1, 1, 1), // 0, Y, Z
-    Vector3(1, 1, 1) // X, Y, Z
-}; // oriented around center
+    Vector3(1, -1, -1),  // X, 0, 0
+    Vector3(-1, 1, -1),  // 0, Y, 0
+    Vector3(-1, -1, 1),  // 0, 0, Z
+    Vector3(1, 1, -1),   // X, Y, 0
+    Vector3(1, -1, 1),   // X, 0, Z
+    Vector3(-1, 1, 1),   // 0, Y, Z
+    Vector3(1, 1, 1)     // X, Y, Z
+};                       // oriented around center
 
-Vector3 halfSize = Vector3(0, 0, 0);
-Matrix Rx = Matrix(3, 3);
-Matrix Ry = Matrix(3, 3);
-Matrix Rz = Matrix(3, 3);
-void DisplayDriver::calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std::deque<Vector3> *vertices, std::deque<std::array<uint16_t, 2>> *edges, std::deque<std::array<uint16_t, 4>> *faces) {
+void DisplayDriver::calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std::deque<Vector3> *vertices, std::deque<std::array<uint16_t, 2>> *edges, std::deque<std::array<uint16_t, 4>> *faces)
+{
     uint16_t count = 0;
-    Rx[0][0] = 1;
-    Ry[1][1] = 1;
-    Rz[2][2] = 1;
-    
-    for (Cube const& cube: *cubes) {
+
+    for (Cube const &cube : *cubes)
+    {
         Vector3 cubeRotationRad = cube.Rotation * deg2rad;
         Rx[1][1] = cos(cubeRotationRad.X);
         Rx[2][1] = -sin(cubeRotationRad.X);
@@ -695,9 +750,10 @@ void DisplayDriver::calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std:
 
         Matrix cubeRotationMatrix = Rz * Ry * Rx;
         Matrix vertexPositionMatrix = Matrix(1, 3);
-        halfSize = cube.Size/2;
+        halfSize = cube.Size / 2;
 
-        for (Vector3 const& pos: stockCubeVertexPositions) {
+        for (Vector3 const &pos : stockCubeVertexPositions)
+        {
             vertexPositionMatrix = pos * halfSize;
             vertices->emplace_back(Vector3(cubeRotationMatrix * vertexPositionMatrix) + cube.Position);
         }
@@ -705,36 +761,34 @@ void DisplayDriver::calculateVerticesFacesAndEdges(std::deque<Cube> *cubes, std:
         // the number x represents which push_back is pushing the vertex.
         // the vertex offset is based on stockCubeVertexPositions's definition
 
-        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 1) }); // 0->X
-        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 2) }); // 0->Z
-        edges->emplace_back(std::array<uint16_t, 2>{ count, static_cast<uint16_t>(count + 3) }); // 0->Y
+        edges->emplace_back(std::array<uint16_t, 2>{count, static_cast<uint16_t>(count + 1)}); // 0->X
+        edges->emplace_back(std::array<uint16_t, 2>{count, static_cast<uint16_t>(count + 2)}); // 0->Y
+        edges->emplace_back(std::array<uint16_t, 2>{count, static_cast<uint16_t>(count + 3)}); // 0->Z
 
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 4) }); // X->XY
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 5) }); // X->XZ
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 4)}); // X->XY
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 1), static_cast<uint16_t>(count + 5)}); // X->XZ
 
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 4) }); // Y->XY
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 6) }); // Y->YZ
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 4)}); // Y->XY
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 2), static_cast<uint16_t>(count + 6)}); // Y->YZ
 
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 6) }); // Z->YZ
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 5) }); // Z->XZ
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 6)}); // Z->YZ
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 3), static_cast<uint16_t>(count + 5)}); // Z->XZ
 
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 4) }); // XYZ->XY
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 6) }); // XYZ->YZ
-        edges->emplace_back(std::array<uint16_t, 2>{ static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 5) }); // XYZ->XZ
-        
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 4)}); // XYZ->XY
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 6)}); // XYZ->YZ
+        edges->emplace_back(std::array<uint16_t, 2>{static_cast<uint16_t>(count + 7), static_cast<uint16_t>(count + 5)}); // XYZ->XZ
 
         // in the context of faces, count+x is a way to tell which edges line up.
         // the number x represents which push_back is pushing the edge.
         // For example, count+0 is the 0->X edge
 
-        faces->emplace_back(std::array<uint16_t, 4>{ 
-            count, // 0,0 corner
+        faces->emplace_back(std::array<uint16_t, 4>{
+            count,                            // 0,0 corner
             static_cast<uint16_t>(count + 1), // X, 0 corner
-            static_cast<uint16_t>(count + 2),  // 0, Y corner
-            static_cast<uint16_t>(count + 4) // X, Y corner
-        }); // XY face
+            static_cast<uint16_t>(count + 2), // 0, Y corner
+            static_cast<uint16_t>(count + 4)  // X, Y corner
+        });                                   // XY face
 
         count += 8;
     }
 }
-

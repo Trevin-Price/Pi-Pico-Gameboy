@@ -71,7 +71,7 @@ void SnakeGame::startGame() {
         if (isSnakeOnSquare(newPosition) || isInvalidPosition(newPosition)) { // check for if the user ran over themself or went out of bounds (I could make it so it just wraps them back to the other side of the game)
             endGame(); // freezes the game, showing "GAME OVER", and waiting until they press the exit button
             break; // go back to the main menu
-        } else if (newPosition == oldPosition) {
+        } else if (newPosition == foodPosition) {
             // no need to "delete" the old food, as the snake will walk over it, which will cause it to disappear forever
             addFood(); // spawns a new food
         } else

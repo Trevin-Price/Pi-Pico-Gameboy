@@ -58,9 +58,9 @@ class DisplayDriver {
 
         static void drawPixel(Vector2 point, uint16_t color);
         
-        static void drawVerticalLine(Vector2 point, int16_t length, uint16_t color);
+        static void drawVerticalLine(Vector2 point, int16_t length, const uint16_t color);
         static void drawHorizontalLine(Vector2 point, int16_t length, uint16_t color);
-        static void drawLine(Vector2 start, Vector2 end, uint16_t thickness, uint16_t color);
+        static void drawLine(Vector2 start, Vector2 end, uint16_t color);
         static void drawFace(std::array<Vector2, 4> corners, uint16_t color); // corners MUST be in a specific order
 
         static void renderBuffer();

@@ -233,7 +233,7 @@ void drawTextNewLine(std::string text) {
                 textPos.Y += FONT_HEIGHT;
             }
             textPos.X += FONT_WIDTH;
-            DisplayDriver::drawChar(textPos, character, Black);// draw individual character (returns width)
+            DisplayDriver::drawChar(textPos, character, Green);// draw individual character (returns width)
         }
         else {
             textPos.Y += FONT_HEIGHT;
@@ -250,9 +250,7 @@ void DisplayTests::renderDevStats() {
     drawTextNewLine(((std::string) "Baud Rate: ").append(std::to_string((float)DisplayDriver::actualBaudRate / 1000000)).append(" MHz"));
     drawTextNewLine(((std::string) "Buffer Time: ").append(std::to_string((double)DisplayDriver::fillAndRenderBufferTime / 1000)).append(" ms"));
     drawTextNewLine("Made by Trevin Price");
-    test3D();
     DisplayDriver::renderBuffer();
-    test3D();
 
     while (true) {
         sleep_ms(FRAME_TIME_MS);
@@ -277,9 +275,14 @@ void DisplayTests::test3D() {
     camera.updatePosition();
 
     std::deque<Cube> world = {
-        Cube(Vector3(0, 0, 0), Vector3::zero, Vector3(2, 2, 2)),
-        //Cube(Vector3(2, 0, 0), Vector3::zero, Vector3(2, 2, 2))
+        Cube(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(2, 2, 2))
     };
+    Vector2 dotSize = Vector2(4, 4);
+    uint16_t speed = 1;
+    speed %= 360;
+    uint16_t faceColor = Red;
+    uint16_t edgeColor = Black;
+    uint16_t vertexColor = Black;
 
     std::deque<std::array<uint16_t, 4>> faces;
 
@@ -289,60 +292,118 @@ void DisplayTests::test3D() {
     std::deque<std::array<uint16_t, 2>> edges;
 
     Vector2 myPos = Vector2::zero;
-    Vector2 dotSize = Vector2(4, 4);
+    bool reRender = true; // needs to render for the first time
+    bool cameraMode = false; // defaults to cube control
+    bool swappedMode = true; // make them release the button before starting
+    uint16_t xRotation = 0;
+    uint16_t yRotation = 0;
 
     while (true) {
-        for (double rot = 0; rot <= 360; rot++) { // 30 fps with full display buffer writing, which is good enough for a game
-            DisplayDriver::fillBuffer(White);
+        UserInputHandler::updateInput();
 
-            world[0].Rotation = rot; // Z rotation is broken and needs to be fixed
-            vertices.clear();
-            edges.clear();
-            faces.clear();
-            DisplayDriver::calculateVerticesFacesAndEdges(&world, &vertices, &edges, &faces);
-
-            //camera.Rotation.Y = rot;
-            //camera.updateRotation();
-            verticesOnScreen.clear();
-
-            for (Vector3 const& pos3D: vertices) {
-                if (camera.project3DTo2D(pos3D, &myPos)) {
-                    verticesOnScreen.emplace_back(myPos);
+        if (UserInputHandler::Buttons[4]) // back button
+            break;
+        if (UserInputHandler::Buttons[0]) // up
+        {
+            reRender = true;
+            yRotation += speed;
+            if (yRotation >= 360)
+                yRotation -= 360;
+        }
+        if (UserInputHandler::Buttons[2]) // down
+        {
+            if (yRotation < speed)
+                yRotation = 360 + yRotation - speed;
+            else
+                yRotation -= speed;
+            reRender = true;
+        }
+        if (UserInputHandler::Buttons[1]) // right
+        {
+            reRender = true;
+            xRotation += speed;
+            if (xRotation >= 360)
+                xRotation -= 360;
+        }
+        if (UserInputHandler::Buttons[3]) // left
+        {
+            if (xRotation < speed)
+                xRotation = 360 + xRotation - speed;
+            else
+                xRotation -= speed;
+            reRender = true;
+        }
+        if (UserInputHandler::Buttons[5]) // select button
+        {
+            if (!swappedMode) {
+                swappedMode = true;
+                if (cameraMode) {
+                    cameraMode = false;
+                    xRotation = world[0].Rotation.Y;
+                    yRotation = world[0].Rotation.X;
+                } else {
+                    cameraMode = true;
+                    xRotation = camera.Rotation.Y;
+                    yRotation = camera.Rotation.X;
                 }
+                reRender = true;
+            }
+        } else
+            swappedMode = false;
+
+        if (reRender) {
+            reRender = false;
+
+            DisplayDriver::fillBuffer(White);
+            DisplayDriver::drawText(Vector2(0, 0), cameraMode ? "CONTROLLING CAMERA" : "CONTROLLING CUBE", Red);
+            
+            if (cameraMode) {
+                camera.Rotation.Y = xRotation;
+                camera.Rotation.X = yRotation;
+                camera.updateRotation();
+            }
+            else {
+                world[0].Rotation.Y = xRotation;
+                world[0].Rotation.X = yRotation;
+                vertices.clear();
+                edges.clear();
+                faces.clear();
+                DisplayDriver::calculateVerticesFacesAndEdges(&world, &vertices, &edges, &faces);
+            }
+
+            verticesOnScreen.clear();
+            for (Vector3 const& pos3D: vertices) {
+                camera.project3DTo2D(pos3D, &myPos);
+                verticesOnScreen.emplace_back(myPos);
             }
 
             for (std::array<uint16_t, 4> const& face: faces) {
                 DisplayDriver::drawFace(std::array<Vector2, 4>({
-                    verticesOnScreen[face[0]],
-                    verticesOnScreen[face[1]],
-                    verticesOnScreen[face[2]],
-                    verticesOnScreen[face[3]]
-                }), Red);
+                    verticesOnScreen.at(face[0]),
+                    verticesOnScreen.at(face[1]),
+                    verticesOnScreen.at(face[2]),
+                    verticesOnScreen.at(face[3])
+                }), faceColor);
             }
 
             for (std::array<uint16_t, 2> const& edge: edges) {
-                Vector2 start = verticesOnScreen[edge[0]];
-                Vector2 end = verticesOnScreen[edge[1]];
-                //drawTextNewLine(std::to_string((int)verticesOnScreen[edge.first].X).append("x").append(std::to_string((int)verticesOnScreen[edge.first].Y)).append(" : ").append(std::to_string((int)verticesOnScreen[edge.second].X)).append("x").append(std::to_string((int)verticesOnScreen[edge.second].Y)));
-                if ((start.X >= 0 && start.X < DISPLAY_WIDTH && start.Y >= 0 && start.Y < DISPLAY_HEIGHT) || (end.X >= 0 && end.X < DISPLAY_WIDTH && end.Y >= 0 && end.Y < DISPLAY_HEIGHT))
-                    DisplayDriver::drawLine(start, end, 1, Black);
+                Vector2 start = verticesOnScreen.at(edge[0]);
+                Vector2 end = verticesOnScreen.at(edge[1]);
+                start.round();
+                end.round();
+                DisplayDriver::drawLine(start, end, edgeColor);
             }
 
-            for (uint16_t i = 0; i < verticesOnScreen.size(); i++) {
-                Vector2 pos = verticesOnScreen[i];
-                //drawTextNewLine(std::to_string((int)pos.X).append("x").append(std::to_string((int)pos.Y)));
-                if (pos.X >= 0 && pos.X < DISPLAY_WIDTH) {
-                    if (pos.Y >= 0 && pos.Y < DISPLAY_HEIGHT) {
-                        if (pos.X < (DISPLAY_WIDTH-2) && pos.X > 1 && pos.Y < (DISPLAY_HEIGHT-2) && pos.Y > 1) {
-                            DisplayDriver::drawRect(pos - 2, dotSize, Black);
-                        }
-                    }
-                }
+            for (Vector2& pos: verticesOnScreen) {
+                pos.round();
+                DisplayDriver::drawRect(pos - 2, dotSize, vertexColor);
             }
 
             textPos.Y = 0;
 
             DisplayDriver::renderBuffer();
         }
+        
+        sleep_ms(FRAME_TIME_MS);
     }
 }

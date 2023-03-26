@@ -36,7 +36,7 @@ public:
     Vector2& operator +=(const double&);
     Vector2& operator -=(const double&);
 
-    std::string toString() const;
+    std::string toString(bool rounded = false) const;
     void round();
     double magnitude() const;
 
@@ -77,7 +77,7 @@ public:
 
     void operator =(const Matrix&);
 
-    std::string toString() const;
+    std::string toString(bool rounded = false) const;
     void round();
     double magnitude() const;
 
