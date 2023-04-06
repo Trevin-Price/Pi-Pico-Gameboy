@@ -98,7 +98,7 @@ void Camera::updatePositionAndRotation() {
     overallMatrix = rotationWithDisplayMatrix * positionMatrix;
 }
 
-void Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
+bool Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
     objectPositionMatrix[0][0] = point.X;
     objectPositionMatrix[0][1] = point.Y;
     objectPositionMatrix[0][2] = point.Z;
@@ -111,6 +111,8 @@ void Camera::project3DTo2D(Vector3 point, Vector2 *pos) {
     
     pos->X = (screenPosMatrix[0][0] + DISPLAY_WIDTH/2);
     pos->Y = (-screenPosMatrix[0][1] + DISPLAY_HEIGHT/2);
+
+    return (screenPosMatrix[0][2] > 0) ? true : false;
 
     // the comments below are old, but I'm keeping them as a record of some of the issues I ran into while working on this project
 

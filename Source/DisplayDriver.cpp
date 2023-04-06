@@ -1,5 +1,8 @@
 #include "DisplayDriver.h"
 
+// need to rewrite drawLine and drawFace, as both of them incorrectly round
+// going along with this, I should rewrite my vector class as a template, as the current system is what led to the rounding errors
+
 /*
 -- Documenting issues along the way
 
@@ -7,8 +10,6 @@
     - The display has the green and blue bits swapped for some unknown reason
     - The problem wasn't the green and blue bits swapped, but rather that my endianness was backwards
 */
-
-// One potential optimization is to use the set collumn and row addresses, which lets me push minimal data and write to certain parts of the display, which seems to be faster than my current method of overwriting the entire buffer every time I want to write a new frame.
 
 /*
 Credit to: https://github.com/shawnhyam/pico/tree/main/ili9341
@@ -231,6 +232,9 @@ void DisplayDriver::drawPixel(Vector2 point, uint16_t color)
 
 void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t color)
 { // negative length for negative direction
+    if (point.Y < 0 || point.Y >= DISPLAY_HEIGHT)
+        return;
+
     if (length < 0)
     {
         if (point.X + length < 0)
@@ -247,6 +251,9 @@ void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t c
 
 void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, const uint16_t color)
 {
+    if (point.X < 0 || point.X >= DISPLAY_WIDTH)
+        return;
+
     if (length < 0)
     {
         length += 1; // convert from base 1 to base 0
@@ -261,7 +268,7 @@ void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, const uint16
         }
 
         uint16_t *base = &buffer[(uint)((point.Y + length) * DISPLAY_WIDTH + point.X)]; // get a pointer to the first pixel (multiply by display size.X because it's left to right)
-        for (int16_t h = length; h < 0; h++)
+        for (int16_t h = length; h <= 0; h++)
         { // iterate through the size.Y, <= because base 0
             *base = color;
             base += DISPLAY_WIDTH;
@@ -288,8 +295,32 @@ void DisplayDriver::drawVerticalLine(Vector2 point, int16_t length, const uint16
     }
 }
 
+Vector2 textPos2 = Vector2(0, FONT_HEIGHT*2);
+
+void drawTextNewLine2(std::string text) {
+    for (char const &character : text) { // loop through all characters
+        if (character != '\n') {
+            if (textPos2.X + FONT_WIDTH >= DISPLAY_WIDTH) {
+                textPos2.X = 0;
+                textPos2.Y += FONT_HEIGHT;
+            }
+            textPos2.X += FONT_WIDTH;
+            DisplayDriver::drawChar(textPos2, character, Green);// draw individual character (returns width)
+        }
+        else {
+            textPos2.Y += FONT_HEIGHT;
+            textPos2.X = 0;
+        }
+    }
+    textPos2.Y += FONT_HEIGHT;
+    textPos2.X = 0;
+}
+
 void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t color)
 {
+    start.round();
+    end.round();
+
     if (start.X == end.X)
     { // handle vertical straight lines
         drawVerticalLine(start, end.Y - start.Y, color);
@@ -304,35 +335,51 @@ void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t color)
     if (start.X > end.X)
         std::swap(start, end);
 
-    // sloped lines are handled here
     double slope = (end.Y - start.Y) / (end.X - start.X);
-    int16_t yInt = round(start.Y - slope * start.X);
+    double offset = start.Y - slope * start.X;
+    
+    start.Y = std::min(std::max(start.Y, 0.0), DISPLAY_HEIGHT - 1.0); // constrain Y to display, recalculate X
+    end.Y = std::min(std::max(end.Y, 0.0), DISPLAY_HEIGHT - 1.0); // constrain Y to display, recalculate X
+    start.X = std::min(std::max((start.Y - offset) / slope, 0.0), DISPLAY_WIDTH - 1.0);
+    end.X = std::min(std::max((end.Y - offset) / slope, 0.0), DISPLAY_WIDTH - 1.0);
+    
+    start.Y = slope * start.X + offset;
+    end.Y = slope * end.X + offset;
 
-    int16_t xMin = std::max(std::min(start.X, end.X), 0.0);                 // constrain to display
-    int16_t xMax = std::min(std::max(start.X, end.X), DISPLAY_WIDTH - 1.0); // constrain to display
+    start.round();
+    end.round();
 
-    int16_t oldY = round(slope * xMin + yInt); // starting y value
+    // sloped lines are handled here
+
+    int16_t oldY = start.Y; // starting y value
     int16_t y;
-    bool init = false;
 
-    for (int16_t x = xMin; x <= xMax; x++)
+    for (int16_t x = start.X; x <= end.X; x++)
     {
-        y = std::min(std::max(round(slope * x + yInt), 0.0), DISPLAY_HEIGHT - 1.0); // calc y
+        double unroundedY = slope * (double)x + offset;
+        if (slope < 0) // this is to fix one stupid issue where if the value was 55.5, instead of rounding to 55, it'd go to 56, which isn't quite what I want when compared to how if it's sloping upwards, it rounds to 56 from 55.5
+            if (round(unroundedY) - unroundedY == 0.5)
+                unroundedY -= 0.1; // make it round down later
 
-        if (!init) 
+        y = round(unroundedY); // calc y
+        
+        /*if (x == start.X) 
         { // if it's the first one
-            init = true;
-            drawPixel(Vector2(x, y), color);
+            drawPixel(Vector2(x, start.Y), color);
             continue;
-        }
+        } else if (x == end.X) {
+            y = end.Y;
+        }*/
 
         if (y != oldY)
         {
             if (oldY > y) // makes the stepping connect to each other so that it looks smoother
-                oldY += 1;
+                oldY += 1; // makes line 1 longer
             else
-                oldY -= 1;
+                oldY -= 1; // makes line 1 longer (opposite direction of += 1)
+            
             drawVerticalLine(Vector2(x, y), oldY - y, color);
+                
             oldY = y;
         } else 
             drawPixel(Vector2(x, y), color);
@@ -340,46 +387,70 @@ void DisplayDriver::drawLine(Vector2 start, Vector2 end, uint16_t color)
 }
 
 void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color)
-{ // SPECIFIC order of corners
+{ // corners = { bottomLeft, bottomRight, topLeft, topRight }
+
+    bool deb = true;
+    for (Vector2& corner : corners) {
+        corner.round();
+        if (corner.X >= 0 && corner.X < DISPLAY_WIDTH && corner.Y >= 0 && corner.Y < DISPLAY_HEIGHT) {
+            deb = false;
+            break;
+        }
+    }
+    if (deb)
+        return; // all points are off screen
+    
     int16_t maxY = round(corners[0].Y), 
             minY = maxY; // have to define because default values may be lower than all else
 
+    // define slopes and offsets to be used later for conversion between x and y coordinates
+    // the labels next to the slopes/offsets assume an unrotated camera staring at an unrotated cube
+    std::array<double, 4> slopes = {
+        (corners[0].Y - corners[1].Y) / (corners[0].X - corners[1].X), // bottom edge
+        (corners[1].Y - corners[3].Y) / (corners[1].X - corners[3].X), // right edge
+        (corners[3].Y - corners[2].Y) / (corners[3].X - corners[2].X), // top edge
+        (corners[2].Y - corners[0].Y) / (corners[2].X - corners[0].X) // left edge
+    };
+    std::array<double, 4> offsets = {
+        (corners[0].Y - corners[0].X * slopes[0]), // bottom edge offset
+        (corners[1].Y - corners[1].X * slopes[1]), // right edge offset
+        (corners[3].Y - corners[3].X * slopes[2]), // top edge offset
+        (corners[2].Y - corners[2].X * slopes[3]) // left edge offset
+    };                           
+
+    // declares+defines whether these edges are special cases or not (slope = +-inf)
+    // note that this doesn't affect horizontal edges because if they've a slope of 0, they just wont be used (maxY == maxY2)
+    std::array<bool, 4> specialCases = {
+        (corners[0].X == corners[1].X),
+        (corners[1].X == corners[3].X),
+        (corners[3].X == corners[2].X),
+        (corners[2].X == corners[0].X)
+    };
+    
     // the max coordinates and above top/bottom max/min definitions are for later
     // they're used to determine how the scanline should be calculated for drawing the face
-
-    for (Vector2 &corner : corners)
+    for (uint8_t i = 0; i < 4; i++)
     {
-        corner.round(); // round to nearest pixel
-        double Y = corner.Y;
+        Vector2 corner = corners[i];
+        corner.X = std::min(std::max(corner.X, 0.0), DISPLAY_WIDTH - 1.0);
+        uint8_t lineNum = i < 2 ? 0 : 2; // if point is bottomleft/right, it does line 0, otherwise it does line 2
+        // this makes sure we only use slope/offset of top/bottom line, as this is x oriented
+        corner.Y = slopes[lineNum] * corner.X + offsets[lineNum];
+        corner.round();
+
+        int16_t Y = corner.Y;
         if (Y > maxY)
             maxY = Y;
         else if (Y < minY)
             minY = Y;
     }
-
-    // define slopes and offsets to be used later for conversion between x and y coordinates
-    // the labels next to the slopes/offsets assume an unrotated camera staring at an unrotated cube
-    double m0 = (corners[0].Y - corners[1].Y) / (corners[0].X - corners[1].X), // bottom edge
-        m1 = (corners[1].Y - corners[3].Y) / (corners[1].X - corners[3].X),    // right edge
-        m2 = (corners[3].Y - corners[2].Y) / (corners[3].X - corners[2].X),    // top edge
-        m3 = (corners[2].Y - corners[0].Y) / (corners[2].X - corners[0].X),    // left edge
-        b0 = (corners[0].Y - corners[0].X * m0),                               // bottom edge offset
-        b1 = (corners[1].Y - corners[1].X * m1),                               // right edge offset
-        b2 = (corners[3].Y - corners[3].X * m2),                               // top edge offset
-        b3 = (corners[2].Y - corners[2].X * m3);                               // left edge offset
-
-    // declares+defines whether these edges are special cases or not (slope = +-inf)
-    // note that this doesn't affect horizontal edges because if they've a slope of 0, they just wont be used (maxY == maxY2)
-    bool s0 = (corners[0].X == corners[1].X),
-         s1 = (corners[1].X == corners[3].X),
-         s2 = (corners[3].X == corners[2].X),
-         s3 = (corners[2].X == corners[0].X);
+    
 
     std::deque<int16_t> xIntercepts;
 
     // round the min and max to display limits
-    minY = minY < 0 ? 0 : (minY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT - 1 : minY);
-    maxY = maxY < 0 ? 0 : (maxY >= DISPLAY_HEIGHT ? DISPLAY_HEIGHT - 1 : maxY);
+    minY = std::min(std::max((double)minY, 0.0), DISPLAY_HEIGHT - 1.0);
+    maxY = std::min(std::max((double)maxY, 0.0), DISPLAY_HEIGHT - 1.0);
 
     uint16_t *base = &buffer[(int)(minY * DISPLAY_WIDTH)]; // make base starting at min point
 
@@ -394,34 +465,34 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color)
         // if there are more than 1 case, then it will find too many xInts, and fail
         if ((y <= corners[1].Y && y >= corners[0].Y) || (y >= corners[1].Y && y <= corners[0].Y))
         {
-            if (s0)
+            if (specialCases[0])
                 xIntercepts.emplace_back(corners[1].X);
             else
-                xIntercepts.emplace_back((y - b0) / m0);
+                xIntercepts.emplace_back((y - offsets[0]) / slopes[0]);
         }
 
         if ((y < corners[1].Y && y >= corners[3].Y) || (y > corners[1].Y && y <= corners[3].Y))
         {
-            if (s1)
+            if (specialCases[1])
                 xIntercepts.emplace_back(corners[1].X);
             else
-                xIntercepts.emplace_back((y - b1) / m1);
+                xIntercepts.emplace_back((y - offsets[1]) / slopes[1]);
         }
 
         if ((y <= corners[2].Y && y > corners[3].Y) || (y >= corners[2].Y && y < corners[3].Y))
         {
-            if (s2)
+            if (specialCases[2])
                 xIntercepts.emplace_back(corners[2].X);
             else
-                xIntercepts.emplace_back((y - b2) / m2);
+                xIntercepts.emplace_back((y - offsets[2]) / slopes[2]);
         }
 
         if ((y < corners[2].Y && y > corners[0].Y) || (y > corners[2].Y && y < corners[0].Y))
         {
-            if (s3)
+            if (specialCases[3])
                 xIntercepts.emplace_back(corners[2].X);
             else
-                xIntercepts.emplace_back((y - b3) / m3+1); // strangely, one edge renders one pixel too far left, needs to be investigated further, but this fixes it for now
+                xIntercepts.emplace_back((y - offsets[3]) / slopes[3]+1); // strangely, one edge renders one pixel too far left, needs to be investigated further, but this fixes it for now
         }
 
         std::sort(xIntercepts.begin(), xIntercepts.end()); // sort smallest to largest
@@ -434,7 +505,7 @@ void DisplayDriver::drawFace(std::array<Vector2, 4> corners, uint16_t color)
 
             // now that we've calculated the scanline, we can render it in
             for (uint16_t x = xIntercepts[0]; x <= xIntercepts[1]; x++)
-                *(base + x) = color;
+                *(base + x) = color; // alternatively i could use subscript operator
         }
 
         base += DISPLAY_WIDTH; // go down one length (following the iteration)
