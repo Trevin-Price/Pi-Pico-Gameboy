@@ -1,13 +1,13 @@
 #include "SnakeGame.h"
 
-#define SNAKE_SEGMENT_SIZE 10 // grid is 32x24 (320x240 split into 10x10 sections)
+#define SNAKE_SEGMENT_SIZE 16 // grid is 20x15 (320x240 split into 16x16 sections), google's is 17x15
 #define GRID_WIDTH (DISPLAY_WIDTH/SNAKE_SEGMENT_SIZE)
 #define GRID_HEIGHT (DISPLAY_HEIGHT/SNAKE_SEGMENT_SIZE)
 #define BACKGROUND_COLOR Black
 #define SNAKE_COLOR Green
 #define FOOD_COLOR Red
 #define GAME_SPEED 5 // Frames Per Second
-#define INPUT_SPEED 70 // Frames Per Second
+#define INPUT_SPEED 70 // Frames Per Second, arbitrary number
 
 int SnakeGame::currentDirection;
 Vector2 SnakeGame::foodPosition;

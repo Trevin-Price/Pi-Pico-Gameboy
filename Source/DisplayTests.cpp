@@ -263,9 +263,10 @@ void DisplayTests::renderDevStats() {
     }
 }
 
-// currently, when the camera rotates, it acts as though the object is rotating, not the camera
-// ideally, it'd act as I expect it to, not in a seemingly random way
-// adding to this is the fact that the cube rotates around x=0, not the center of the camera
+struct PosData2D {
+    Vector2 Position;
+    bool IsPointOnScreen;
+};
 
 void DisplayTests::test3D() {
     Camera camera = Camera();
@@ -288,7 +289,7 @@ void DisplayTests::test3D() {
 
     std::deque<Vector3> vertices;
 
-    std::deque<Vector2> verticesOnScreen;
+    std::deque<PosData2D> verticesOnScreen;
     std::deque<std::array<uint16_t, 2>> edges;
 
     Vector2 myPos = Vector2::zero;
@@ -373,30 +374,39 @@ void DisplayTests::test3D() {
 
             verticesOnScreen.clear();
             for (Vector3 const& pos3D: vertices) {
-                camera.project3DTo2D(pos3D, &myPos);
-                verticesOnScreen.emplace_back(myPos);
+                PosData2D pos2D;
+                pos2D.IsPointOnScreen = camera.project3DTo2D(pos3D, &myPos);
+                pos2D.Position = myPos;
+                verticesOnScreen.emplace_back(pos2D);
             }
 
             for (std::array<uint16_t, 4> const& face: faces) {
-                DisplayDriver::drawFace(std::array<Vector2, 4>({
-                    verticesOnScreen.at(face[0]),
-                    verticesOnScreen.at(face[1]),
-                    verticesOnScreen.at(face[2]),
-                    verticesOnScreen.at(face[3])
-                }), faceColor);
+                if (verticesOnScreen.at(face[0]).IsPointOnScreen || verticesOnScreen.at(face[1]).IsPointOnScreen || verticesOnScreen.at(face[2]).IsPointOnScreen || verticesOnScreen.at(face[3]).IsPointOnScreen) {
+                    DisplayDriver::drawFace(std::array<Vector2, 4>({
+                        verticesOnScreen.at(face[0]).Position,
+                        verticesOnScreen.at(face[1]).Position,
+                        verticesOnScreen.at(face[2]).Position,
+                        verticesOnScreen.at(face[3]).Position
+                    }), faceColor);
+                }
             }
 
             for (std::array<uint16_t, 2> const& edge: edges) {
-                Vector2 start = verticesOnScreen.at(edge[0]);
-                Vector2 end = verticesOnScreen.at(edge[1]);
-                start.round();
-                end.round();
-                DisplayDriver::drawLine(start, end, edgeColor);
+                if (verticesOnScreen.at(edge[0]).IsPointOnScreen || verticesOnScreen.at(edge[1]).IsPointOnScreen) {
+                    Vector2 start = verticesOnScreen.at(edge[0]).Position;
+                    Vector2 end = verticesOnScreen.at(edge[1]).Position;
+                    start.round();
+                    end.round();
+                    DisplayDriver::drawLine(start, end, edgeColor);
+                }
             }
 
-            for (Vector2& pos: verticesOnScreen) {
-                pos.round();
-                DisplayDriver::drawRect(pos - 2, dotSize, vertexColor);
+            for (PosData2D& data: verticesOnScreen) {
+                if (data.IsPointOnScreen) {
+                    Vector2 pos = data.Position;
+                    pos.round();
+                    DisplayDriver::drawRect(pos - 2, dotSize, vertexColor);
+                }
             }
 
             textPos.Y = 0;

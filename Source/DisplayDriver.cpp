@@ -227,7 +227,8 @@ void DisplayDriver::renderBuffer()
 
 void DisplayDriver::drawPixel(Vector2 point, uint16_t color)
 {
-    buffer[(int)(point.Y * DISPLAY_WIDTH + point.X)] = color;
+    if (point.Y >= 0 && point.Y < DISPLAY_HEIGHT && point.X >= 0 && point.X < DISPLAY_WIDTH) // memory safety
+        buffer[(int)(point.Y * DISPLAY_WIDTH + point.X)] = color;
 }
 
 void DisplayDriver::drawHorizontalLine(Vector2 point, int16_t length, uint16_t color)
